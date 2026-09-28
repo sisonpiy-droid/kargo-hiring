@@ -62,3 +62,16 @@ pre.email {
   white-space: pre-wrap; font: inherit; background: #fafafa; border: 1px solid var(--line);
   border-radius: 6px; padding: 12px; margin: 6px 0 10px;
 }
+
+.drop {
+  display: block; border: 2px dashed var(--line); border-radius: 8px; padding: 22px;
+  text-align: center; cursor: pointer; background: #fcfcfd; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over { border-color: var(--accent); background: #f2f5ff; }
+.bar { flex: 1; min-width: 120px; max-width: 320px; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent); transition: width .3s; }
+.queue { max-height: 180px; overflow-y: auto; margin-top: 8px; font-size: 13px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--line); margin-right: 4px; }
+.dot.scoring { background: #f59e0b; }
+.dot.done { background: var(--good); }
+.dot.failed { background: var(--bad); }

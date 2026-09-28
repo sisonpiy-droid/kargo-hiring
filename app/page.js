@@ -3,6 +3,9 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 const ROLE_NAMES = { PM: "Product Manager", SPM: "Senior Product Manager" };
+// Each CV is ~8s of Gemini time; 3 in flight is ~3x faster without tripping
+// rate limits (429s are retried server-side).
+const CONCURRENCY = 3;
 
 function getStored() {
   try { return localStorage.getItem("kargo-passcode") || ""; } catch { return ""; }
@@ -18,8 +21,17 @@ export default function Dashboard() {
   const [role, setRole] = useState("PM");        // role for uploads
   const [rankBy, setRankBy] = useState("PM");    // role the table is ranked by
   const [applied, setApplied] = useState("ALL"); // filter by applied role
+  const [show, setShow] = useState("ALL");       // ALL | UNSENT | SENT
   const [openId, setOpenId] = useState(null);
-  const [uploads, setUploads] = useState([]);    // [{ name, state, msg }]
+  const [dragging, setDragging] = useState(false);
+
+  // Upload queue. Items are mutated in place and `rerender` repaints; simpler than
+  // immutable updates for a list whose items change state several times each.
+  const queue = useRef([]); // [{ key, file, role, state: waiting|scoring|done|failed|skipped, msg }]
+  const active = useRef(0);
+  const [, setTick] = useState(0);
+  const rerender = () => setTick((t) => t + 1);
+  const refreshTimer = useRef(null);
 
   const api = useCallback(
     (path, opts = {}) =>
@@ -48,26 +60,60 @@ export default function Dashboard() {
     if (p) { pc.current = p; setPasscode(p); refresh(); }
   }, [refresh]);
 
-  async function uploadFiles(files) {
-    const list = [...files].map((f) => ({ name: f.name, state: "waiting", msg: "" }));
-    setUploads(list);
-    // One at a time: each CV is two Gemini calls, and this keeps rate limits happy.
-    for (let i = 0; i < files.length; i++) {
-      list[i] = { ...list[i], state: "scoring…" };
-      setUploads([...list]);
-      const form = new FormData();
-      form.append("file", files[i]);
-      form.append("role", role);
-      try {
-        const r = await api("/api/upload", { method: "POST", body: form });
-        const warn = !r.email_found ? " · no email found in CV" : !r.name_found ? " · no name found in CV" : "";
-        list[i] = { ...list[i], state: "done", msg: `PM ${r.pm_score} · SPM ${r.spm_score}${warn}` };
-      } catch (e) {
-        list[i] = { ...list[i], state: "failed", msg: e.message };
-      }
-      setUploads([...list]);
-      await refresh();
+  // While a batch runs, refresh the table at most every 1.5s.
+  function refreshSoon() {
+    clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(refresh, 1500);
+  }
+
+  function pump() {
+    while (active.current < CONCURRENCY) {
+      const item = queue.current.find((i) => i.state === "waiting");
+      if (!item) break;
+      item.state = "scoring";
+      active.current++;
+      runItem(item).finally(() => { active.current--; refreshSoon(); pump(); });
     }
+    rerender();
+  }
+
+  async function runItem(item) {
+    const form = new FormData();
+    form.append("file", item.file);
+    form.append("role", item.role);
+    try {
+      const r = await api("/api/upload", { method: "POST", body: form });
+      const warn = !r.email_found ? " · no email found in CV" : !r.name_found ? " · no name found in CV" : "";
+      item.state = "done";
+      item.msg = `PM ${r.pm_score} · SPM ${r.spm_score}${warn}`;
+    } catch (e) {
+      item.state = "failed";
+      item.msg = e.message;
+    }
+  }
+
+  function addFiles(files) {
+    // Skip anything already uploaded or queued under the same file name + role,
+    // so dropping the whole folder again is safe.
+    const seen = new Set((data?.candidates || []).map((c) => `${c.file_name}|${c.applied_role}`));
+    for (const i of queue.current) if (i.state !== "failed") seen.add(`${i.file.name}|${i.role}`);
+    for (const file of files) {
+      const id = `${file.name}|${role}`;
+      const dup = seen.has(id);
+      seen.add(id);
+      queue.current.push({ key: `${id}|${queue.current.length}`, file, role, state: dup ? "skipped" : "waiting", msg: dup ? "already uploaded" : "" });
+    }
+    pump();
+  }
+
+  function retryFailed() {
+    for (const i of queue.current) if (i.state === "failed") { i.state = "waiting"; i.msg = ""; }
+    pump();
+  }
+
+  function clearFinished() {
+    queue.current = queue.current.filter((i) => i.state === "waiting" || i.state === "scoring");
+    rerender();
   }
 
   async function send(c, type) {
@@ -95,35 +141,71 @@ export default function Dashboard() {
   }
 
   const key = rankBy === "PM" ? "pm_score" : "spm_score";
-  const rows = (data?.candidates || [])
+  const all = data?.candidates || [];
+  const rows = all
     .filter((c) => applied === "ALL" || c.applied_role === applied)
+    .filter((c) => show === "ALL" || (show === "SENT") === (c.status === "sent"))
     .sort((a, b) => b[key] - a[key]);
-  const busy = uploads.some((u) => u.state === "scoring…" || u.state === "waiting");
+
+  const q = queue.current;
+  const count = (state) => q.filter((i) => i.state === state).length;
+  const counts = { done: count("done"), scoring: count("scoring"), waiting: count("waiting"), failed: count("failed"), skipped: count("skipped") };
+  const processed = counts.done + counts.failed + counts.skipped;
 
   return (
     <main>
-      <h1>Kargo Hiring</h1>
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+        <h1 style={{ margin: 0 }}>Kargo Hiring</h1>
+        <span className="muted">
+          {all.length} candidates · {all.filter((c) => c.recommendation === "invite").length} recommended for interview · {all.filter((c) => c.status === "sent").length} sent
+        </span>
+      </div>
 
       <section className="card">
-        <div className="row">
+        <div className="row" style={{ marginBottom: 10 }}>
           <strong>Upload CVs</strong>
           <label>Applied for{" "}
-            <select value={role} onChange={(e) => setRole(e.target.value)} disabled={busy}>
+            <select value={role} onChange={(e) => setRole(e.target.value)}>
               <option value="PM">Product Manager (PM)</option>
               <option value="SPM">Senior Product Manager (SPM)</option>
             </select>
           </label>
-          <input type="file" multiple accept=".pdf,.docx,.txt,.md" disabled={busy}
-            onChange={(e) => { if (e.target.files.length) uploadFiles(e.target.files); e.target.value = ""; }} />
-          <span className="muted">PDF, DOCX or TXT. Name, email and phone are removed before any AI step.</span>
+          <span className="muted">Name, email and phone are removed before any AI step.</span>
         </div>
-        {uploads.length > 0 && (
+
+        <label
+          className={`drop ${dragging ? "over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+        >
+          <input type="file" multiple accept=".pdf,.docx,.txt,.md" hidden
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+          <strong>Drop CVs here</strong> or click to choose. Pick as many as you like (Ctrl+A selects a whole folder).
+          <div className="muted">PDF, DOCX or TXT · added as {ROLE_NAMES[role]} · you can keep adding while others process</div>
+        </label>
+
+        {q.length > 0 && (
           <div style={{ marginTop: 10 }}>
-            {uploads.map((u, i) => (
-              <div key={i} className={u.state === "failed" ? "error" : "muted"}>
-                {u.name}: {u.state} {u.msg && `(${u.msg})`}
-              </div>
-            ))}
+            <div className="row">
+              <div className="bar"><div style={{ width: `${(processed / q.length) * 100}%` }} /></div>
+              <span>
+                {processed}/{q.length} · <b>{counts.done}</b> done
+                {counts.scoring > 0 && <> · {counts.scoring} scoring</>}
+                {counts.waiting > 0 && <> · {counts.waiting} waiting</>}
+                {counts.skipped > 0 && <> · {counts.skipped} skipped</>}
+                {counts.failed > 0 && <span className="error"> · {counts.failed} failed</span>}
+              </span>
+              {counts.failed > 0 && <button onClick={retryFailed}>Retry failed</button>}
+              {processed > 0 && <button onClick={clearFinished}>Clear finished</button>}
+            </div>
+            <div className="queue">
+              {q.map((i) => (
+                <div key={i.key} className={i.state === "failed" ? "error" : i.state === "done" ? "" : "muted"}>
+                  <span className={`dot ${i.state}`} /> {i.file.name} <span className="muted">({i.role})</span>: {i.state === "scoring" ? "scoring…" : i.state}{i.msg && ` · ${i.msg}`}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>
@@ -139,12 +221,17 @@ export default function Dashboard() {
           <select value={applied} onChange={(e) => setApplied(e.target.value)}>
             <option value="ALL">All</option><option value="PM">PM</option><option value="SPM">SPM</option>
           </select>
+          <span className="seg">
+            {[["ALL", "All"], ["UNSENT", "Not sent"], ["SENT", "Sent"]].map(([v, l]) => (
+              <button key={v} className={show === v ? "on" : ""} onClick={() => setShow(v)}>{l}</button>
+            ))}
+          </span>
           <button onClick={refresh}>Refresh</button>
-          {data && <span className="muted">Invite line: top {data.topN} per applied role scoring ≥ {data.threshold}</span>}
         </div>
+        {data && <p className="muted" style={{ margin: "0 0 8px" }}>Interview line: top {data.topN} applicants per role scoring ≥ {data.threshold}/100. Click a row for the brief, breakdown and email.</p>}
         {loadError && <p className="error">{loadError}</p>}
 
-        {rows.length === 0 ? <p className="muted">No candidates yet. Upload a CV above.</p> : (
+        {rows.length === 0 ? <p className="muted">{all.length ? "No candidates match these filters." : "No candidates yet. Upload CVs above."}</p> : (
           <div className="table-wrap">
             <table>
               <thead>
