@@ -1,0 +1,20 @@
+Priya Raghavan
+Product Manager | Bengaluru
+priya.raghavan@example.com | +91 98450 12345 | linkedin.com/in/priya-raghavan
+
+SUMMARY
+Product manager who spends her first week in any role sitting with the people who use the product. Priya has shipped operations tooling in logistics and fintech.
+
+EXPERIENCE
+Product Manager, ShipFast Logistics (2022 - 2025)
+- Noticed while shadowing warehouse supervisors that 30% of dispatch delays came from drivers re-keying consignment numbers from paper. This was not on the roadmap; I wrote a one-page case and got two engineers for a sprint.
+- Ran 14 ride-alongs and interviews with dispatchers; mapped the real dispatch workflow and found the official SOP skipped the manual reconciliation step entirely.
+- Designed and launched a barcode-scan flow in the driver app. Personally wrote the spec, ran the pilot at two hubs, and handled rollout to 38 hubs.
+- Dispatch errors fell 41% and average dispatch time dropped from 22 to 9 minutes within one quarter.
+- Turned the pilot playbook into a hub-onboarding checklist and training video; the ops team has since used it for 12 new hubs without me.
+
+Associate Product Manager, PayLane (2020 - 2022)
+- Owned the merchant onboarding funnel. Found through support ticket review that KYC rejection emails were unreadable; rewrote them with the compliance team, cutting repeat tickets by 25%.
+
+EDUCATION
+B.Tech, NIT Trichy, 2020

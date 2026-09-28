@@ -1,0 +1,64 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #fff;
+  --text: #16181d;
+  --muted: #667085;
+  --line: #e4e7ec;
+  --accent: #1f4fd8;
+  --good: #067647;
+  --good-bg: #ecfdf3;
+  --bad: #b42318;
+  --bad-bg: #fef3f2;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+h1 { font-size: 20px; margin: 0 0 16px; }
+h3 { font-size: 13px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.muted { color: var(--muted); }
+.error { color: var(--bad); }
+
+button, select, input { font: inherit; }
+button {
+  border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+select, input[type="password"] { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: #fff; }
+.seg button { border-radius: 0; margin-left: -1px; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button.on { background: var(--text); color: #fff; border-color: var(--text); }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+tr.cand { cursor: pointer; }
+tr.cand:hover { background: #f9fafb; }
+tr.open { background: #f2f5ff; }
+td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+.pill.invite { background: var(--good-bg); color: var(--good); }
+.pill.rejection { background: var(--bad-bg); color: var(--bad); }
+.pill.sent { background: #eef4ff; color: var(--accent); }
+
+.detail { padding: 4px 8px 16px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+.crit { font-size: 13px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.crit b { font-variant-numeric: tabular-nums; }
+pre.email {
+  white-space: pre-wrap; font: inherit; background: #fafafa; border: 1px solid var(--line);
+  border-radius: 6px; padding: 12px; margin: 6px 0 10px;
+}

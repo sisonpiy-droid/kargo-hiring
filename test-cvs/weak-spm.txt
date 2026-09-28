@@ -1,0 +1,25 @@
+CURRICULUM VITAE
+
+Name: Karan Malhotra
+Email: karan.m@example.org
+Phone: 9876543210
+
+PROFILE
+Results-driven, proactive Senior Product Manager with 12 years of experience and strong ownership mindset. Passionate about Agile, Scrum, JIRA, stakeholder management, and product strategy. MBA from a top-tier institute.
+
+EXPERIENCE
+Senior Product Manager, MegaCorp Software (2018 - Present)
+- Responsible for the product roadmap for the enterprise suite.
+- Worked with cross-functional teams to deliver features.
+- Participated in quarterly planning and backlog grooming.
+- Managed a team of 4 product managers.
+
+Product Manager, Infotech Solutions (2013 - 2018)
+- Gathered requirements from business stakeholders.
+- Part of the team that launched the new CRM module.
+
+SKILLS
+Product strategy, Roadmapping, Agile, SQL, Tableau, Figma, Stakeholder management
+
+EDUCATION
+MBA, IIM Lucknow (2013)

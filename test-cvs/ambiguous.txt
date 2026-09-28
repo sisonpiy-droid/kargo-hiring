@@ -1,0 +1,17 @@
+ANANYA DESHPANDE
+Pune, India • (020) 2567-8901 • ananya.deshpande@example.net
+
+Senior Product Manager with a background in customer support operations.
+
+WORK HISTORY
+Senior Product Manager — TrackOps (2021 - 2025)
+- Led the customer notifications product. Ananya introduced a weekly review of carrier SLA breaches with the support team.
+- Launched automated ETA emails; open rates were high but support tickets did not drop, so after two months we paused the feature and interviewed 20 customers, learning they wanted WhatsApp updates instead. Rebuilt on WhatsApp; "where is my shipment" tickets fell 18%.
+- Contributed to the company-wide OKR process.
+
+Customer Support Lead — TrackOps (2018 - 2021)
+- Handled escalations for 60 enterprise accounts.
+- Created a shared macro library for the support team.
+
+EDUCATION
+BBA, Symbiosis, 2018
