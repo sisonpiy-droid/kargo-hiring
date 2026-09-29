@@ -148,7 +148,7 @@ function Header({ tab, setTab, reviewCount }) {
         <div className="logo">K</div>
         <div>
           <div className="title">Kargo Hiring</div>
-          <div className="tagline">AI finds the signal. Arjun makes the decision. Automation handles everything after.</div>
+          <div className="tagline">Every CV scored on evidence. Every candidate hears back.</div>
         </div>
       </div>
       {setTab && (
@@ -177,6 +177,11 @@ function Evaluate({ api, onDone, existing }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [inputKey, setInputKey] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const addPicked = (list) => {
+    const ok = [...list].filter((f) => /\.(pdf|docx|txt|md)$/i.test(f.name));
+    setFiles((prev) => [...prev, ...ok.filter((f) => !prev.some((p) => p.name === f.name))]);
+  };
   const queue = useRef([]);
   const active = useRef(0);
   const [, setTick] = useState(0);
@@ -239,8 +244,13 @@ function Evaluate({ api, onDone, existing }) {
   const processed = n("done") + n("failed") + n("skipped");
 
   return (
-    <section className="card" data-anim>
-      <h2>Evaluate CVs</h2>
+    <section
+      className={`card dropcard ${dragging ? "over" : ""}`} data-anim
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); addPicked(e.dataTransfer.files); }}
+    >
+      <h2>Evaluate CVs <span className="muted small">choose or drop as many CVs as you like, then click Evaluate</span></h2>
       <div className="evalgrid">
         <label className="field">Role
           <select value={role} onChange={(e) => setRole(e.target.value)}>
@@ -249,7 +259,7 @@ function Evaluate({ api, onDone, existing }) {
           </select>
         </label>
         <label className="field grow">CV files (PDF, Word or .txt, multiple allowed)
-          <input key={inputKey} type="file" multiple accept=".pdf,.docx,.txt,.md" onChange={(e) => setFiles([...e.target.files])} />
+          <input key={inputKey} type="file" multiple accept=".pdf,.docx,.txt,.md" onChange={(e) => { addPicked(e.target.files); setInputKey((k) => k + 1); }} />
         </label>
       </div>
       <details className="override">
@@ -261,8 +271,13 @@ function Evaluate({ api, onDone, existing }) {
         <div className="muted small">Only applied when exactly one CV is selected.</div>
       </details>
       <div className="row end">
-        {files.length > 0 && <span className="muted">{files.length} file{files.length === 1 ? "" : "s"} selected</span>}
-        <button className="primary" onClick={evaluate} disabled={!files.length}>Evaluate</button>
+        {files.length > 0 && (
+          <span className="muted">
+            {files.length} CV{files.length === 1 ? "" : "s"} ready: {files.slice(0, 3).map((f) => f.name).join(", ")}{files.length > 3 && ` +${files.length - 3} more`}
+            {" "}<button className="link" onClick={() => setFiles([])}>clear</button>
+          </span>
+        )}
+        <button className="primary" onClick={evaluate} disabled={!files.length}>{files.length > 1 ? `Evaluate ${files.length} CVs` : "Evaluate"}</button>
       </div>
 
       {q.length > 0 && (
