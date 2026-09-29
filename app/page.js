@@ -17,6 +17,7 @@ export default function Dashboard() {
   const pc = useRef("");
   pc.current = passcode;
   const [authed, setAuthed] = useState(false);
+  const [checked, setChecked] = useState(false); // first load attempted (avoids flashing the passcode form)
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState("shortlist");
@@ -45,9 +46,12 @@ export default function Dashboard() {
     }
   }, [api]);
 
+  // Try straight away: with no passcode set on the server this just opens the dashboard;
+  // with one, a stored passcode is used, or the passcode form is shown.
   useEffect(() => {
     const p = getStored();
-    if (p) { pc.current = p; setPasscode(p); refresh(); }
+    if (p) { pc.current = p; setPasscode(p); }
+    refresh().finally(() => setChecked(true));
   }, [refresh]);
 
   async function run(id, fn) {
@@ -73,6 +77,7 @@ export default function Dashboard() {
     });
   };
 
+  if (!authed && !checked) return <Header />;
   if (!authed) {
     return (
       <>
@@ -81,7 +86,7 @@ export default function Dashboard() {
           <form className="card row" onSubmit={(e) => { e.preventDefault(); refresh(); }}>
             <input type="password" placeholder="Passcode" value={passcode} onChange={(e) => setPasscode(e.target.value)} autoFocus />
             <button className="primary">Open</button>
-            {loadError && <span className="error">{loadError}</span>}
+            {loadError && passcode && <span className="error">{loadError}</span>}
           </form>
         </main>
       </>
