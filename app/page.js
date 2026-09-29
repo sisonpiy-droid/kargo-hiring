@@ -113,6 +113,7 @@ const FILTERS = {
 
 function Board({ tab, setTab, data, loadError, all, count, medium, rejections, rejectionsUnsent, actions, api, refresh, sendAllRejections }) {
   const [filter, setFilter] = useState("all");
+  const [role, setRole] = useState("PM"); // role tab on the Shortlist page
   const mainRef = useReveal([tab, filter]);
   const openFiltered = (key) => { setFilter(key); setTab("audit"); };
   const goTab = (t) => { setFilter("all"); setTab(t); };
@@ -133,8 +134,15 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
 
         {tab === "shortlist" && (
           <>
-            <Evaluate api={api} onDone={refresh} existing={all} />
-            <Shortlist candidates={all.filter((c) => c.list === "shortlist")} actions={actions} testRecipient={data?.testRecipient} />
+            <div className="roletabs" data-anim>
+              {["PM", "SPM"].map((r) => (
+                <button key={r} className={role === r ? "on" : ""} onClick={() => setRole(r)}>
+                  {ROLE_NAMES[r]} <span className="muted">{all.filter((c) => c.applied_role === r).length} CVs</span>
+                </button>
+              ))}
+            </div>
+            <Evaluate api={api} onDone={refresh} existing={all} role={role} />
+            <Shortlist key={role} role={role} candidates={all.filter((c) => c.list === "shortlist" && c.applied_role === role)} actions={actions} testRecipient={data?.testRecipient} />
           </>
         )}
         {tab === "review" && (
@@ -143,6 +151,7 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
             <RejectionList candidates={rejections} unsent={rejectionsUnsent.length} actions={actions} onSendAll={() => sendAllRejections(rejectionsUnsent.length)} />
           </>
         )}
+        {tab === "rubric" && <RubricView data={data} />}
         {tab === "audit" && <AuditLog candidates={all} filter={filter} setFilter={setFilter} />}
       </main>
     </>
@@ -167,6 +176,7 @@ function Header({ tab, setTab, reviewCount }) {
           <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>
             Review queue {reviewCount > 0 && <span className="badge" ref={badge}>{reviewCount}</span>}
           </button>
+          <button className={tab === "rubric" ? "on" : ""} onClick={() => setTab("rubric")}>Rubric</button>
           <button className={tab === "audit" ? "on" : ""} onClick={() => setTab("audit")}>Audit log</button>
         </nav>
       )}
@@ -186,8 +196,7 @@ function Stat({ n, label, active, onClick }) {
 
 // --- Evaluate CVs: role, files, optional single-CV override, parallel queue ---
 
-function Evaluate({ api, onDone, existing }) {
-  const [role, setRole] = useState("SPM");
+function Evaluate({ api, onDone, existing, role }) {
   const [files, setFiles] = useState([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -265,15 +274,9 @@ function Evaluate({ api, onDone, existing }) {
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
       onDrop={(e) => { e.preventDefault(); setDragging(false); addPicked(e.dataTransfer.files); }}
     >
-      <h2>Evaluate CVs <span className="muted small">choose or drop as many CVs as you like, then click Evaluate</span></h2>
+      <h2>Evaluate {ROLE_NAMES[role]} CVs <span className="muted small">choose or drop as many as you like, then click Evaluate</span></h2>
       <div className="evalgrid">
-        <label className="field">Role
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="SPM">Senior Product Manager</option>
-            <option value="PM">Product Manager</option>
-          </select>
-        </label>
-        <label className="field grow">CV files (PDF, Word or .txt, multiple allowed)
+        <label className="field grow">CV files for {ROLE_NAMES[role]} (PDF, Word or .txt, multiple allowed)
           <input key={inputKey} type="file" multiple accept=".pdf,.docx,.txt,.md" onChange={(e) => { addPicked(e.target.files); setInputKey((k) => k + 1); }} />
         </label>
       </div>
@@ -334,14 +337,14 @@ function MinMatch({ value, onChange, shown }) {
 
 // --- Shortlist ------------------------------------------------------------------
 
-function Shortlist({ candidates, actions, testRecipient }) {
+function Shortlist({ role, candidates, actions, testRecipient }) {
   const [min, setMin] = useState(0);
   const shown = candidates.filter((c) => c.match >= min);
   return (
     <section>
-      <h2 className="section" data-anim>Shortlist <span className="muted small">High potential, plus medium candidates you reconsider</span></h2>
+      <h2 className="section" data-anim>{ROLE_NAMES[role]} shortlist <span className="muted small">High potential, plus medium candidates you reconsider</span></h2>
       <MinMatch value={min} onChange={setMin} shown={shown.length} />
-      {shown.length === 0 && <div className="card muted">No shortlisted candidates yet. Evaluate some CVs above.</div>}
+      {shown.length === 0 && <div className="card muted">No shortlisted {ROLE_NAMES[role]} candidates yet. Evaluate some CVs above.</div>}
       {shown.map((c) => <CandidateCard key={c.id} c={c} actions={actions} testRecipient={testRecipient} />)}
     </section>
   );
@@ -557,5 +560,47 @@ function AuditLog({ candidates: all, filter, setFilter }) {
         </table>
       </div>
     </section>
+  );
+}
+
+// --- Rubric ----------------------------------------------------------------------
+
+function RubricView({ data }) {
+  const criteria = data?.rubric || [];
+  const t = data?.thresholds || {};
+  return (
+    <>
+      <section className="card" data-anim>
+        <h2>Rubric</h2>
+        <div className="muted small">Every CV is scored on both rubrics, 1-5 per criterion, with quoted evidence. Match % is the weighted score for the role applied for.</div>
+        <div className="rules">
+          <span><span className="pill high">High potential</span> match &ge; {t.high}% and risk &le; {t.maxRisk}</span>
+          <span><span className="pill medium">Medium potential</span> match &ge; {t.medium}% and risk &le; {t.maxRisk}</span>
+          <span><span className="pill rejected">Auto-rejected</span> below {t.medium}%, or risk above {t.maxRisk}</span>
+        </div>
+      </section>
+      <div className="cols">
+        {["PM", "SPM"].map((role) => (
+          <section key={role} className="card" data-anim>
+            <h2>{ROLE_NAMES[role]}</h2>
+            {criteria.filter((c) => c.role === role).map((c) => (
+              <div key={c.id} className="rubcrit">
+                <div className="row between"><b>{c.position}. {c.name}</b><span className="weight">{c.weight}%</span></div>
+                <div className="meter"><div style={{ width: `${Math.min(100, c.weight * 2.5)}%` }} /></div>
+                <div className="muted small">{c.description}</div>
+              </div>
+            ))}
+            <div className="muted small">Total: {criteria.filter((c) => c.role === role).reduce((a, c) => a + c.weight, 0)}%</div>
+          </section>
+        ))}
+      </div>
+      <section className="card" data-anim>
+        <h2>Risk flags</h2>
+        <div className="muted small" style={{ marginBottom: 8 }}>Each flag adds 30 risk points (max 100).</div>
+        {(data?.riskFlags || []).map((f) => (
+          <div key={f.name} className="crit"><span className="chip">{f.name}</span> <span className="muted small">{f.description}</span></div>
+        ))}
+      </section>
+    </>
   );
 }

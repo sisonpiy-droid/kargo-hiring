@@ -6,6 +6,13 @@ import { tierOf, listOf } from "@/lib/tier";
 
 export const dynamic = "force-dynamic";
 
+const RISK_FLAG_INFO = [
+  { name: "No operations exposure", description: "No hands-on operations or logistics work at all." },
+  { name: "Structure dependency", description: "Has only worked inside established PM structures (a manager above, defined roadmaps), with no evidence of operating alone." },
+  { name: "Keyword-only claims", description: "Relies on titles, frameworks, certifications or buzzwords with no concrete outcomes." },
+  { name: "No shipped outcomes", description: "No evidence of anything shipped reaching real users." },
+];
+
 const REQUIRED_ENV = ["GEMINI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "RESEND_API_KEY"];
 
 export async function GET(request) {
@@ -63,6 +70,13 @@ export async function GET(request) {
       candidates: out,
       missing: REQUIRED_ENV.filter((k) => !process.env[k]),
       testRecipient: process.env.TEST_RECIPIENT || null,
+      rubric: criteria.map(({ id, role, position, name, description, weight }) => ({ id, role, position, name, description, weight })),
+      riskFlags: RISK_FLAG_INFO,
+      thresholds: {
+        high: Number(process.env.HIGH_MATCH || 80),
+        medium: Number(process.env.MEDIUM_MATCH || 70),
+        maxRisk: Number(process.env.MAX_RISK || 30),
+      },
     });
   } catch (err) {
     console.error("candidates failed:", err.message);
