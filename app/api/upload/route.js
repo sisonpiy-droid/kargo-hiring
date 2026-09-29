@@ -25,11 +25,11 @@ export async function POST(request) {
     const raw = await cvFileToText(file);
 
     // 1. Split personal details off. Only `cvText` (redacted) goes any further toward the AI.
-    const { pii, cvText } = extractPii(raw);
-    const nameOverride = String(form.get("name") || "").trim();
-    const emailOverride = String(form.get("email") || "").trim();
-    if (nameOverride) pii.name = nameOverride.slice(0, 120);
-    if (emailOverride) pii.email = emailOverride.slice(0, 200);
+    // A name typed in the single-CV override is also removed from the text.
+    const nameOverride = String(form.get("name") || "").trim().slice(0, 120);
+    const emailOverride = String(form.get("email") || "").trim().slice(0, 200);
+    const { pii, cvText } = extractPii(raw, { fileName: file.name, knownName: nameOverride || undefined });
+    if (emailOverride) pii.email = emailOverride;
 
     // 2-3. AI steps, before anything is written, so a failure leaves no half-saved candidate.
     const criteria = await loadCriteria();
