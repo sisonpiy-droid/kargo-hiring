@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useReveal, useEnter, useCountUp, usePulse } from "@/lib/motion";
 
+// Job key -> title, filled from the server on every refresh (PM / SPM plus any new jobs).
 const ROLE_NAMES = { PM: "Product Manager", SPM: "Senior Product Manager" };
 const TIER_LABEL = { high: "High potential", medium: "Medium potential", rejected: "Auto-rejected" };
 const CONCURRENCY = 3; // CVs evaluated in parallel; each is ~10s of Gemini time
@@ -37,7 +38,9 @@ export default function Dashboard() {
 
   const refresh = useCallback(async () => {
     try {
-      setData(await api("/api/candidates"));
+      const d = await api("/api/candidates");
+      for (const j of d.jobs || []) ROLE_NAMES[j.key] = j.title;
+      setData(d);
       setLoadError("");
       setAuthed(true);
       try { localStorage.setItem("kargo-passcode", pc.current); } catch {}
@@ -113,7 +116,11 @@ const FILTERS = {
 
 function Board({ tab, setTab, data, loadError, all, count, medium, rejections, rejectionsUnsent, actions, api, refresh, sendAllRejections }) {
   const [filter, setFilter] = useState("all");
-  const [role, setRole] = useState("PM"); // role tab on the Shortlist page
+  const [role, setRoleRaw] = useState("PM"); // job tab on the Shortlist page
+  const jobs = data?.jobs?.length ? data.jobs : [{ key: "PM" }, { key: "SPM" }];
+  const setRole = setRoleRaw;
+  // If the selected job was deleted, fall back to the first one.
+  useEffect(() => { if (!jobs.some((j) => j.key === role)) setRoleRaw(jobs[0].key); }, [jobs, role]);
   const mainRef = useReveal([tab, filter]);
   const openFiltered = (key) => { setFilter(key); setTab("audit"); };
   const goTab = (t) => { setFilter("all"); setTab(t); };
@@ -135,7 +142,7 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
         {tab === "shortlist" && (
           <>
             <div className="roletabs" data-anim>
-              {["PM", "SPM"].map((r) => (
+              {jobs.map(({ key: r }) => (
                 <button key={r} className={role === r ? "on" : ""} onClick={() => setRole(r)}>
                   {ROLE_NAMES[r]} <span className="muted">{all.filter((c) => c.applied_role === r).length} CVs</span>
                 </button>
@@ -151,8 +158,8 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
             <RejectionList candidates={rejections} unsent={rejectionsUnsent.length} actions={actions} onSendAll={() => sendAllRejections(rejectionsUnsent.length)} />
           </>
         )}
-        {tab === "rubric" && <RubricView data={data} />}
-        {tab === "audit" && <AuditLog candidates={all} filter={filter} setFilter={setFilter} />}
+        {tab === "rubric" && <JobsView data={data} api={api} refresh={refresh} />}
+        {tab === "audit" && <AuditLog candidates={all} filter={filter} setFilter={setFilter} api={api} refresh={refresh} />}
       </main>
     </>
   );
@@ -176,7 +183,7 @@ function Header({ tab, setTab, reviewCount }) {
           <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>
             Review queue {reviewCount > 0 && <span className="badge" ref={badge}>{reviewCount}</span>}
           </button>
-          <button className={tab === "rubric" ? "on" : ""} onClick={() => setTab("rubric")}>Rubric</button>
+          <button className={tab === "rubric" ? "on" : ""} onClick={() => setTab("rubric")}>Jobs &amp; rubrics</button>
           <button className={tab === "audit" ? "on" : ""} onClick={() => setTab("audit")}>Audit log</button>
         </nav>
       )}
@@ -402,7 +409,7 @@ function CandidateCard({ c, actions, testRecipient, fromQueue }) {
         <details className="reasoning">
           <summary>Full evaluation reasoning</summary>
           <p>{e.reasoning}</p>
-          <p className="muted small">Other role: PM {c.pm_score}% · SPM {c.spm_score}% match.</p>
+          <p className="muted small">Match by job: {Object.entries(c.job_scores || {}).filter(([, v]) => v != null).map(([k, v]) => `${ROLE_NAMES[k] || k} ${v}%`).join(" · ")}</p>
         </details>
       )}
 
@@ -523,7 +530,19 @@ function RejectionList({ candidates, unsent, actions, onSendAll }) {
 
 // --- Audit log ------------------------------------------------------------------
 
-function AuditLog({ candidates: all, filter, setFilter }) {
+function AuditLog({ candidates: all, filter, setFilter, api, refresh }) {
+  const [wiping, setWiping] = useState(false);
+  async function deleteAllCvs() {
+    const typed = prompt(`This deletes all ${all.length} CVs: candidates, their personal details, scores, briefs and email drafts.\nJobs, JDs and rubrics are kept.\n\nType DELETE to confirm.`);
+    if (typed !== "DELETE") return;
+    setWiping(true);
+    try {
+      const r = await api("/api/candidates/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: "DELETE" }) });
+      alert(`${r.deleted} CVs deleted. Jobs and rubrics are unchanged.`);
+    } catch (e) { alert(e.message); }
+    setWiping(false);
+    refresh();
+  }
   const candidates = all.filter(FILTERS[filter].test);
   const status = (c) =>
     c.status === "sent" ? (c.sent_email_type === "invite" ? "Invite sent" : "Rejection scheduled")
@@ -548,7 +567,7 @@ function AuditLog({ candidates: all, filter, setFilter }) {
               <tr key={c.id} data-anim>
                 <td className="muted">{c.ref}</td>
                 <td>{c.name}</td>
-                <td>{c.applied_role}</td>
+                <td>{ROLE_NAMES[c.applied_role] || c.applied_role}</td>
                 <td><b>{c.match}%</b></td>
                 <td>{c.risk}</td>
                 <td><Pill tier={c.tier} /></td>
@@ -559,48 +578,190 @@ function AuditLog({ candidates: all, filter, setFilter }) {
           </tbody>
         </table>
       </div>
+      <div className="danger">
+        <div>
+          <b>Start again</b>
+          <div className="muted small">Deletes every CV and everything generated from it. Jobs, JDs and rubrics are kept.</div>
+        </div>
+        <button className="dangerbtn" onClick={deleteAllCvs} disabled={wiping || !all.length}>{wiping ? "Deleting…" : `Delete all ${all.length} CVs`}</button>
+      </div>
     </section>
   );
 }
 
-// --- Rubric ----------------------------------------------------------------------
+// --- Jobs & rubrics ---------------------------------------------------------------
 
-function RubricView({ data }) {
+function JobsView({ data, api, refresh }) {
   const criteria = data?.rubric || [];
+  const jobs = data?.jobs || [];
   const t = data?.thresholds || {};
   return (
     <>
       <section className="card" data-anim>
-        <h2>Rubric</h2>
-        <div className="muted small">Every CV is scored on both rubrics, 1-5 per criterion, with quoted evidence. Match % is the weighted score for the role applied for.</div>
+        <h2>Jobs &amp; rubrics</h2>
+        <div className="muted small">Every CV is scored against every job's rubric, 1-5 per criterion, with quoted evidence. Match % is the weighted score for the job it was uploaded to.</div>
         <div className="rules">
           <span><span className="pill high">High potential</span> match &ge; {t.high}% and risk &le; {t.maxRisk}</span>
           <span><span className="pill medium">Medium potential</span> match &ge; {t.medium}% and risk &le; {t.maxRisk}</span>
           <span><span className="pill rejected">Auto-rejected</span> below {t.medium}%, or risk above {t.maxRisk}</span>
         </div>
       </section>
+
+      <NewJob api={api} refresh={refresh} />
+
       <div className="cols">
-        {["PM", "SPM"].map((role) => (
-          <section key={role} className="card" data-anim>
-            <h2>{ROLE_NAMES[role]}</h2>
-            {criteria.filter((c) => c.role === role).map((c) => (
-              <div key={c.id} className="rubcrit">
-                <div className="row between"><b>{c.position}. {c.name}</b><span className="weight">{c.weight}%</span></div>
-                <div className="meter"><div style={{ width: `${Math.min(100, c.weight * 2.5)}%` }} /></div>
-                <div className="muted small">{c.description}</div>
-              </div>
-            ))}
-            <div className="muted small">Total: {criteria.filter((c) => c.role === role).reduce((a, c) => a + c.weight, 0)}%</div>
-          </section>
+        {jobs.map((j) => (
+          <JobCard key={j.key} job={j} criteria={criteria.filter((c) => c.role === j.key)} candidates={data?.candidates || []} api={api} refresh={refresh} />
         ))}
       </div>
+
       <section className="card" data-anim>
         <h2>Risk flags</h2>
-        <div className="muted small" style={{ marginBottom: 8 }}>Each flag adds 30 risk points (max 100).</div>
+        <div className="muted small" style={{ marginBottom: 8 }}>Each flag adds 30 risk points (max 100). They apply to every job.</div>
         {(data?.riskFlags || []).map((f) => (
           <div key={f.name} className="crit"><span className="chip">{f.name}</span> <span className="muted small">{f.description}</span></div>
         ))}
       </section>
     </>
+  );
+}
+
+function JobCard({ job, criteria, candidates, api, refresh }) {
+  const [progress, setProgress] = useState(null); // { done, total, failed }
+  const unscored = candidates.filter((c) => c.job_scores?.[job.key] == null);
+  const filed = candidates.filter((c) => c.applied_role === job.key).length;
+
+  async function scoreExisting() {
+    const list = [...unscored];
+    let done = 0, failed = 0;
+    setProgress({ done, total: list.length, failed });
+    const worker = async () => {
+      for (let c; (c = list.shift()); ) {
+        try {
+          await api("/api/jobs/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: job.key, id: c.id }) });
+        } catch { failed++; }
+        done++;
+        setProgress({ done, total: done + list.length, failed });
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    refresh();
+  }
+
+  async function deleteJob() {
+    if (!confirm(`Delete the job "${job.title}", its rubric, and the ${filed} CV${filed === 1 ? "" : "s"} uploaded to it?\nOther jobs and their CVs are not affected.`)) return;
+    try {
+      const r = await api("/api/jobs", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: job.key }) });
+      alert(`Deleted "${job.title}"${r.candidatesDeleted ? ` and ${r.candidatesDeleted} CVs` : ""}.`);
+    } catch (e) { alert(e.message); }
+    refresh();
+  }
+
+  const running = progress && progress.done < progress.total;
+  return (
+    <section className="card" data-anim>
+      <div className="row between">
+        <h2 style={{ margin: 0 }}>{job.title}</h2>
+        <span className={`tag ${job.preset ? "" : "new"}`}>{job.preset ? "Preset" : "From JD"}</span>
+      </div>
+      <div className="muted small" style={{ margin: "4px 0 12px" }}>{filed} CV{filed === 1 ? "" : "s"} uploaded to this job</div>
+      {criteria.map((c) => (
+        <div key={c.id} className="rubcrit">
+          <div className="row between"><b>{c.position}. {c.name}</b><span className="weight">{c.weight}%</span></div>
+          <div className="meter"><div style={{ width: `${Math.min(100, c.weight * 2.5)}%` }} /></div>
+          <div className="muted small">{c.description}</div>
+        </div>
+      ))}
+      <div className="muted small">Total: {criteria.reduce((a, c) => a + c.weight, 0)}%</div>
+      {job.jd_text && (
+        <details className="reasoning">
+          <summary>Job description</summary>
+          <p style={{ whiteSpace: "pre-wrap" }}>{job.jd_text}</p>
+        </details>
+      )}
+      <div className="row end actionsrow">
+        {progress && <span className="muted small">{running ? `Scoring ${progress.done}/${progress.total}…` : `Scored ${progress.done - progress.failed} CVs${progress.failed ? `, ${progress.failed} failed` : ""}`}</span>}
+        {unscored.length > 0 && !running && (
+          <button onClick={scoreExisting} title="Score CVs already in the system against this job's rubric">Score {unscored.length} existing CV{unscored.length === 1 ? "" : "s"}</button>
+        )}
+        {!job.preset && <button className="dangerbtn" onClick={deleteJob} disabled={running}>Delete job</button>}
+      </div>
+    </section>
+  );
+}
+
+function NewJob({ api, refresh }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [jd, setJd] = useState("");
+  const [file, setFile] = useState(null);
+  const [draft, setDraft] = useState(null); // { title, jd, criteria }
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+
+  async function generate() {
+    setBusy("generate"); setError("");
+    const form = new FormData();
+    form.append("title", title);
+    form.append("jd", jd);
+    if (file) form.append("file", file);
+    try { setDraft(await api("/api/jobs/draft", { method: "POST", body: form })); } catch (e) { setError(e.message); }
+    setBusy("");
+  }
+  const edit = (i, field, value) => setDraft((d) => ({ ...d, criteria: d.criteria.map((c, k) => (k === i ? { ...c, [field]: field === "weight" ? Number(value) : value } : c)) }));
+  const total = draft?.criteria.reduce((a, c) => a + (Number(c.weight) || 0), 0) || 0;
+
+  async function create() {
+    setBusy("create"); setError("");
+    try {
+      await api("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: draft.title, jd: draft.jd, criteria: draft.criteria }) });
+      setDraft(null); setTitle(""); setJd(""); setFile(null); setOpen(false);
+      refresh();
+    } catch (e) { setError(e.message); }
+    setBusy("");
+  }
+
+  if (!open) {
+    return (
+      <div className="row end" data-anim style={{ marginBottom: 14 }}>
+        <button className="primary" onClick={() => setOpen(true)}>+ New job from a JD</button>
+      </div>
+    );
+  }
+  return (
+    <section className="card newjob" data-anim>
+      <div className="row between"><h2 style={{ margin: 0 }}>New job</h2><button onClick={() => { setOpen(false); setDraft(null); }}>Cancel</button></div>
+      <div className="muted small" style={{ margin: "4px 0 12px" }}>Paste or upload a job description. The AI drafts a rubric you can edit before creating the job. PM and SPM are not changed.</div>
+      {!draft ? (
+        <>
+          <label className="field">Job title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Data Analyst" /></label>
+          <label className="field">Job description<textarea rows={8} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full JD here…" /></label>
+          <label className="field">…or upload it (PDF, Word or .txt)<input type="file" accept=".pdf,.docx,.txt,.md" onChange={(e) => setFile(e.target.files[0] || null)} /></label>
+          <div className="row end">
+            {error && <span className="error">{error}</span>}
+            <button className="primary" onClick={generate} disabled={!title.trim() || (!jd.trim() && !file) || !!busy}>{busy === "generate" ? "Drafting rubric…" : "Generate rubric"}</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <label className="field">Job title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
+          {draft.criteria.map((c, i) => (
+            <div key={i} className="critedit">
+              <div className="row">
+                <input className="grow" value={c.name} onChange={(e) => edit(i, "name", e.target.value)} />
+                <input className="w" type="number" min="1" max="100" value={c.weight} onChange={(e) => edit(i, "weight", e.target.value)} /> <span className="muted">%</span>
+              </div>
+              <textarea rows={3} value={c.description} onChange={(e) => edit(i, "description", e.target.value)} />
+            </div>
+          ))}
+          <div className="row end">
+            <span className={total === 100 ? "muted" : "error"}>Weights total {total}%{total !== 100 && " (must be 100%)"}</span>
+            {error && <span className="error">{error}</span>}
+            <button onClick={generate} disabled={!!busy}>{busy === "generate" ? "Redrafting…" : "Regenerate"}</button>
+            <button className="primary" onClick={create} disabled={total !== 100 || !draft.title.trim() || !!busy}>{busy === "create" ? "Creating…" : "Create job"}</button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

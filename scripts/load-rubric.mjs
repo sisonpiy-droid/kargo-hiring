@@ -17,6 +17,14 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// The preset jobs and their JDs (jds/pm.txt, jds/spm.txt) must exist before their rubric.
+const jd = (f) => { try { return readFileSync(new URL(`../jds/${f}`, import.meta.url), "utf8"); } catch { return null; } };
+const { error: jobErr } = await db.from("jobs").upsert([
+  { key: "PM", title: "Product Manager", preset: true, jd_text: jd("pm.txt") },
+  { key: "SPM", title: "Senior Product Manager", preset: true, jd_text: jd("spm.txt") },
+], { onConflict: "key" });
+if (jobErr) { console.error("Jobs upsert failed (run db/migrate-v3.sql first):", jobErr.message); process.exit(1); }
+
 // Upsert on (role, position) so ids stay stable and existing scores keep pointing at them.
 const { error } = await db.from("rubric_criteria").upsert(rows, { onConflict: "role,position" });
 if (error) {

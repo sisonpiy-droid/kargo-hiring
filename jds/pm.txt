@@ -1,0 +1,59 @@
+Kargo   ·   Mumbai   ·   Series A
+
+
+
+Product Manager
+
+Full-time  ·  In-office, Mumbai  ·  Reports to: Arjun Mehta, Founder
+
+About Kargo
+
+Kargo builds software for mid-sized freight forwarders and 3PLs — the companies that move goods across borders and between ports, warehouses, and buyers. Our platform automates the parts of their operation that still run on spreadsheets and WhatsApp chains: shipment tracking, documentation, and carrier coordination. We are Series A, 40 people, and scaling to 70 by December.
+
+Why This Role Exists
+
+We have one product, a growing customer base, and no dedicated PM function yet. The person in this role will be the first PM at Kargo focused on our core platform — the day-to-day tool that operations teams at freight forwarders live inside. There is a lot to build, and a lot to understand about how our customers actually work. Both are connected.
+
+What You'll Own
+
+—  The product roadmap for Kargo's core operations platform: shipment tracking, documentation workflows, and real-time status visibility for freight forwarders and their customers
+
+—  Customer discovery — understanding where the platform is helping and where it isn't, from the people who use it daily
+
+—  Working directly with the engineering team to define what gets built, in what order, and why
+
+—  The rhythms a PM function needs: how we decide what to prioritise, how we track whether something worked, how decisions are communicated across the team
+
+What Success Looks Like at 6 Months
+
+—  You have shipped at least two features that customers use without being asked to — not because we asked, because they found them useful
+
+—  You can tell Arjun, without hesitation, what the three most important things to build next are and why
+
+—  The engineering team knows what they are building three sprints out
+
+—  You have spent time inside freight forwarding operations — not just over calls, but in the rooms where the work actually happens
+
+What We're Looking For
+
+—  2–4 years of product management experience, ideally at a company building for the first time rather than maintaining what already exists
+
+—  Comfort operating without structure — no PM handbook, no design system, no sprint template. You'll build those
+
+—  Evidence that you've shipped things, killed things, and learned from both — preferably in short cycles
+
+—  Genuine curiosity about how operations work at ground level. What does a freight forwarder's morning actually look like? What breaks? What slows them down?
+
+—  Mumbai-based or willing to relocate. This role is in-office
+
+What Kargo Offers
+
+—  Real ownership, early. You will be the PM — not one of ten
+
+—  Direct access to the founding team and to customers
+
+—  A product with genuine complexity and users who depend on it for their daily operations
+
+—  The experience of building a product function from scratch, not joining one that already exists
+
+Kargo is an equal opportunity employer. All roles are in-office, Mumbai. If you are relocating, we will work with you on timing.

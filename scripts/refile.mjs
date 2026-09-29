@@ -44,6 +44,7 @@ ${cvText.slice(0, 12000)}
 }
 
 const criteria = await must(db.from("rubric_criteria").select("*"));
+const jobs = await must(db.from("jobs").select("key, title"));
 const rows = await must(db.from("candidates").select("id, file_name, applied_role, status, cv_text"));
 const files = readdirSync(folder).filter((f) => /\.(pdf|docx|txt)$/i.test(f));
 
@@ -83,7 +84,7 @@ for (const p of plan.sort((a, b) => a.file_name.localeCompare(b.file_name))) {
   console.log(`${p.file_name.padEnd(30)} ${p.applied_role} -> ${p.target}${change ? (skip ? "  (already emailed, left as is)" : "  MOVE") : ""}  | ${p.how}`);
   if (!change || skip || dry) continue;
   // 2. Re-evaluate for the new role: the brief and emails were written for the old one.
-  const r = await evaluateCv(p.cv_text, p.target, criteria);
+  const r = await evaluateCv(p.cv_text, p.target, criteria, jobs);
   await must(db.from("candidates").update({ applied_role: p.target, decision: null, ...r.fields }).eq("id", p.id));
   await must(db.from("scores").delete().eq("candidate_id", p.id));
   await must(db.from("scores").insert(r.scoreRows.map((s) => ({ candidate_id: p.id, ...s }))));
@@ -98,7 +99,7 @@ for (const f of missing) {
   const role = roleFromName(f) || (await judgeRole(cvText)).role;
   console.log(`${f.padEnd(30)} missing from the database -> uploading as ${role}`);
   if (dry) continue;
-  const r = await evaluateCv(cvText, role, criteria);
+  const r = await evaluateCv(cvText, role, criteria, jobs);
   const [c] = await must(db.from("candidates").insert({ applied_role: role, file_name: f, cv_text: cvText, ...r.fields }).select("id"));
   await must(db.from("candidate_pii").insert({ candidate_id: c.id, ...pii }));
   await must(db.from("scores").insert(r.scoreRows.map((s) => ({ candidate_id: c.id, ...s }))));

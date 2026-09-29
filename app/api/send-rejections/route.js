@@ -2,7 +2,7 @@
 // been emailed yet. Founder-triggered ("Send all rejection mails"); never automatic.
 import { checkPasscode } from "@/lib/auth";
 import { db, q } from "@/lib/db";
-import { tierOf, listOf } from "@/lib/tier";
+import { tierOf, listOf, matchOf } from "@/lib/tier";
 import { sendCandidateEmail } from "@/lib/mail";
 
 export const maxDuration = 300;
@@ -14,10 +14,9 @@ export async function POST(request) {
   if (denied) return denied;
 
   try {
-    const rows = await q(db().from("candidates").select("id, applied_role, pm_score, spm_score, risk_score, decision").eq("status", "scored"));
+    const rows = await q(db().from("candidates").select("id, applied_role, job_scores, pm_score, spm_score, risk_score, decision").eq("status", "scored"));
     const targets = rows.filter((c) => {
-      const match = Number(c.applied_role === "PM" ? c.pm_score : c.spm_score);
-      return listOf(tierOf(match, c.risk_score ?? 0), c.decision) === "rejection";
+      return listOf(tierOf(matchOf(c), c.risk_score ?? 0), c.decision) === "rejection";
     });
 
     let sent = 0;

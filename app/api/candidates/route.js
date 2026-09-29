@@ -2,7 +2,8 @@
 // plus which server settings are missing (for the warning banner).
 import { checkPasscode } from "@/lib/auth";
 import { db, q, loadCriteria } from "@/lib/db";
-import { tierOf, listOf } from "@/lib/tier";
+import { tierOf, listOf, matchOf } from "@/lib/tier";
+import { loadJobs } from "@/lib/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,10 @@ export async function GET(request) {
   if (denied) return denied;
 
   try {
-    const [criteria, candidates, pii, scores] = await Promise.all([
+    const [criteria, jobs, candidates, pii, scores] = await Promise.all([
       loadCriteria(),
-      q(db().from("candidates").select("id, ref, applied_role, file_name, pm_score, spm_score, risk_score, eval, invite_subject, invite_draft, rejection_draft, decision, status, sent_email_type, sent_at, scheduled_for, created_at")),
+      loadJobs(),
+      q(db().from("candidates").select("id, ref, applied_role, file_name, job_scores, pm_score, spm_score, risk_score, eval, invite_subject, invite_draft, rejection_draft, decision, status, sent_email_type, sent_at, scheduled_for, created_at")),
       q(db().from("candidate_pii").select("candidate_id, name, email")),
       q(db().from("scores").select("candidate_id, criterion_id, score, reason")),
     ]);
@@ -31,7 +33,7 @@ export async function GET(request) {
     const out = candidates.map((c) => {
       const person = piiById.get(c.id) || {};
       const firstName = person.name?.split(" ")[0] || "there";
-      const match = Number(c.applied_role === "PM" ? c.pm_score : c.spm_score);
+      const match = matchOf(c);
       const risk = c.risk_score ?? 0;
       const tier = tierOf(match, risk);
       const rubric = (role) =>
@@ -47,8 +49,7 @@ export async function GET(request) {
         applied_role: c.applied_role,
         file_name: c.file_name,
         match,
-        pm_score: Number(c.pm_score),
-        spm_score: Number(c.spm_score),
+        job_scores: Object.keys(c.job_scores || {}).length ? c.job_scores : { PM: c.pm_score, SPM: c.spm_score },
         risk,
         tier,
         decision: c.decision,
@@ -70,6 +71,7 @@ export async function GET(request) {
       candidates: out,
       missing: REQUIRED_ENV.filter((k) => !process.env[k]),
       testRecipient: process.env.TEST_RECIPIENT || null,
+      jobs: jobs.map(({ key, title, jd_text, preset, created_at }) => ({ key, title, jd_text, preset, created_at })),
       rubric: criteria.map(({ id, role, position, name, description, weight }) => ({ id, role, position, name, description, weight })),
       riskFlags: RISK_FLAG_INFO,
       thresholds: {

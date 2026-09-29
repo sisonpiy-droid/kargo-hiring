@@ -1,0 +1,63 @@
+Kargo   ·   Mumbai   ·   Series A
+
+
+
+Senior Product Manager
+
+Full-time  ·  In-office, Mumbai  ·  Reports to: Arjun Mehta, Founder
+
+About Kargo
+
+Kargo builds software for mid-sized freight forwarders and 3PLs — the companies that move goods across borders and between ports, warehouses, and buyers. Our platform automates shipment tracking, documentation, and carrier coordination. We are Series A, 40 people, and scaling to 70 by December.
+
+Why This Role Exists
+
+As we scale, Kargo's product is becoming more complex. More carrier integrations. More customer-specific configurations. More data flowing between Kargo and the systems our customers already use. We need someone who can own the harder parts of the platform: the decisions that have consequences we will feel two years from now, not just in the next sprint. This person will also be the most senior PM at Kargo, which means they will help shape what the product function looks like as we grow.
+
+What You'll Own
+
+—  The integration and data layer of Kargo's platform: how we connect with carrier systems, port portals, ERP environments, and the freight management tools our customers already operate
+
+—  The hard architectural product calls — what we build, what we configure, what we stay away from
+
+—  Reliability and data quality standards that freight forwarders can stake their operations on
+
+—  Working across sales, engineering, and customer operations to understand which integrations unlock new customers and which gaps are losing them
+
+—  Helping define the practices, decision frameworks, and ways of working the PM function will run on as Kargo grows
+
+What Success Looks Like at 6 Months
+
+—  You own an integration roadmap that engineering, sales, and Arjun all agree on and trust — and that has not changed three times in six weeks
+
+—  At least one major integration has shipped that opened a new customer segment or unblocked a stalled deal
+
+—  You have a clear, defensible point of view on what Kargo should build versus configure versus not touch — and the team knows what it is
+
+—  The product function has clearer standards for what good PM work looks like, because you have demonstrated it
+
+What We're Looking For
+
+—  5–8 years of product management experience, with clear evidence of owning a product area without a layer of senior PMs above you making the calls
+
+—  Experience with platform products, integration layers, or products that have to work inside complex existing technical environments
+
+—  Proven ability to make calls in ambiguous situations and live with the consequences — at Kargo there is no committee that approves product decisions
+
+—  Time spent at an early-stage company, or strong evidence that you have operated in environments where the rules were not written yet
+
+—  Familiarity with how operations-heavy industries work at ground level — logistics, supply chain, or adjacent domains — is a genuine advantage here, not a nice-to-have
+
+—  Mumbai-based or willing to relocate. This role is in-office
+
+What Kargo Offers
+
+—  A role that could become Head of Product as we scale. We are not offering a title — we are offering the actual work
+
+—  Direct access to Arjun and the founding team
+
+—  A product with real complexity, real customers, and real operational stakes
+
+—  The chance to build a PM function rather than join one
+
+Kargo is an equal opportunity employer. All roles are in-office, Mumbai. If you are relocating, we will work with you on timing.
