@@ -1,8 +1,12 @@
-// GET -> every candidate with both scores, criterion breakdown, brief, drafts and a recommendation.
+// GET -> every candidate with match, risk, tier, list, rubric evidence, brief and drafts,
+// plus which server settings are missing (for the warning banner).
 import { checkPasscode } from "@/lib/auth";
 import { db, q, loadCriteria } from "@/lib/db";
+import { tierOf, listOf } from "@/lib/tier";
 
 export const dynamic = "force-dynamic";
+
+const REQUIRED_ENV = ["GEMINI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "RESEND_API_KEY"];
 
 export async function GET(request) {
   const denied = checkPasscode(request);
@@ -11,49 +15,55 @@ export async function GET(request) {
   try {
     const [criteria, candidates, pii, scores] = await Promise.all([
       loadCriteria(),
-      q(db().from("candidates").select("id, applied_role, file_name, pm_score, spm_score, brief, invite_draft, rejection_draft, status, sent_email_type, sent_at, created_at")),
+      q(db().from("candidates").select("id, ref, applied_role, file_name, pm_score, spm_score, risk_score, eval, invite_subject, invite_draft, rejection_draft, decision, status, sent_email_type, sent_at, scheduled_for, created_at")),
       q(db().from("candidate_pii").select("candidate_id, name, email")),
       q(db().from("scores").select("candidate_id, criterion_id, score, reason")),
     ]);
-
-    // The invite line: top N applicants for each role who also clear the threshold.
-    const topN = Number(process.env.TOP_N || 5);
-    const threshold = Number(process.env.INVITE_THRESHOLD || 60);
-    const scoreFor = (c, role) => Number(role === "PM" ? c.pm_score : c.spm_score);
-    const rankInRole = new Map();
-    for (const role of ["PM", "SPM"]) {
-      candidates
-        .filter((c) => c.applied_role === role)
-        .sort((a, b) => scoreFor(b, role) - scoreFor(a, role))
-        .forEach((c, i) => rankInRole.set(c.id, i + 1));
-    }
 
     const piiById = new Map(pii.map((p) => [p.candidate_id, p]));
     const out = candidates.map((c) => {
       const person = piiById.get(c.id) || {};
       const firstName = person.name?.split(" ")[0] || "there";
-      const rank = rankInRole.get(c.id);
-      const shortlisted = rank <= topN && scoreFor(c, c.applied_role) >= threshold;
-      const breakdown = (role) =>
+      const match = Number(c.applied_role === "PM" ? c.pm_score : c.spm_score);
+      const risk = c.risk_score ?? 0;
+      const tier = tierOf(match, risk);
+      const rubric = (role) =>
         criteria.filter((k) => k.role === role).map((k) => {
           const s = scores.find((x) => x.candidate_id === c.id && x.criterion_id === k.id);
-          return { name: k.name, weight: k.weight, score: s?.score ?? null, reason: s?.reason ?? "" };
+          return { name: k.name, weight: k.weight, score: s?.score ?? null, evidence: s?.reason ?? "" };
         });
       return {
-        ...c,
+        id: c.id,
+        ref: `KARGO-2026-${String(c.ref ?? 0).padStart(3, "0")}`,
         name: person.name || "(name not found)",
         email: person.email || null,
+        applied_role: c.applied_role,
+        file_name: c.file_name,
+        match,
         pm_score: Number(c.pm_score),
         spm_score: Number(c.spm_score),
-        rank_in_applied_role: rank,
-        recommendation: shortlisted ? "invite" : "rejection",
+        risk,
+        tier,
+        decision: c.decision,
+        list: listOf(tier, c.decision),
+        eval: c.eval || { summary: "", brief: [], strengths: [], risks: [], probes: [], reasoning: "", risk_flags: [] },
+        rubric: rubric(c.applied_role),
+        invite_subject: c.invite_subject || "Interview invitation from Kargo",
         invite_draft: c.invite_draft.replaceAll("[NAME]", firstName),
         rejection_draft: c.rejection_draft.replaceAll("[NAME]", firstName),
-        breakdown: { PM: breakdown("PM"), SPM: breakdown("SPM") },
+        status: c.status,
+        sent_email_type: c.sent_email_type,
+        sent_at: c.sent_at,
+        scheduled_for: c.scheduled_for,
       };
     });
+    out.sort((a, b) => b.match - a.match || a.risk - b.risk);
 
-    return Response.json({ candidates: out, topN, threshold });
+    return Response.json({
+      candidates: out,
+      missing: REQUIRED_ENV.filter((k) => !process.env[k]),
+      testRecipient: process.env.TEST_RECIPIENT || null,
+    });
   } catch (err) {
     console.error("candidates failed:", err.message);
     return Response.json({ error: err.message }, { status: 500 });

@@ -1,8 +1,10 @@
-// POST multipart { file, role } -> extract PII, score on both rubrics, draft brief + emails, save.
+// POST multipart { file, role, [name], [email] } -> extract PII, score on both rubrics,
+// draft brief + emails, save. name/email override what was extracted (single-CV uploads).
 import { checkPasscode } from "@/lib/auth";
 import { cvFileToText, MAX_FILE_BYTES } from "@/lib/cv-text";
 import { extractPii } from "@/lib/pii";
-import { scoreCv, draftCommunications } from "@/lib/pipeline";
+import { evaluateCv } from "@/lib/evaluate";
+import { tierOf } from "@/lib/tier";
 import { db, q, loadCriteria } from "@/lib/db";
 
 export const maxDuration = 120;
@@ -24,36 +26,27 @@ export async function POST(request) {
 
     // 1. Split personal details off. Only `cvText` (redacted) goes any further toward the AI.
     const { pii, cvText } = extractPii(raw);
+    const nameOverride = String(form.get("name") || "").trim();
+    const emailOverride = String(form.get("email") || "").trim();
+    if (nameOverride) pii.name = nameOverride.slice(0, 120);
+    if (emailOverride) pii.email = emailOverride.slice(0, 200);
 
     // 2-3. AI steps, before anything is written, so a failure leaves no half-saved candidate.
     const criteria = await loadCriteria();
-    const scoring = await scoreCv(cvText, criteria);
-    const drafts = await draftCommunications(cvText, role, scoring, criteria);
+    const result = await evaluateCv(cvText, role, criteria);
 
     // 4. Save: anonymised content, PII (separate table), per-criterion scores.
     const [candidate] = await q(
-      db().from("candidates").insert({
-        applied_role: role,
-        file_name: file.name,
-        cv_text: cvText,
-        pm_score: scoring.PM.total,
-        spm_score: scoring.SPM.total,
-        brief: drafts.brief,
-        invite_draft: drafts.invite,
-        rejection_draft: drafts.rejection,
-      }).select("id")
+      db().from("candidates").insert({ applied_role: role, file_name: file.name, cv_text: cvText, ...result.fields }).select("id")
     );
     candidateId = candidate.id;
     await q(db().from("candidate_pii").insert({ candidate_id: candidateId, ...pii }));
-    await q(
-      db().from("scores").insert(
-        [...scoring.PM.rows, ...scoring.SPM.rows].map((r) => ({
-          candidate_id: candidateId, criterion_id: r.criterion_id, score: r.score, reason: r.reason,
-        }))
-      )
-    );
+    await q(db().from("scores").insert(result.scoreRows.map((r) => ({ candidate_id: candidateId, ...r }))));
 
-    return Response.json({ id: candidateId, pm_score: scoring.PM.total, spm_score: scoring.SPM.total, name_found: !!pii.name, email_found: !!pii.email });
+    return Response.json({
+      id: candidateId, match: result.match, risk: result.risk, tier: tierOf(result.match, result.risk),
+      name_found: !!pii.name, email_found: !!pii.email,
+    });
   } catch (err) {
     if (candidateId) await db().from("candidates").delete().eq("id", candidateId); // cascades to pii + scores
     console.error("upload failed:", err.message); // message only; never the CV or PII

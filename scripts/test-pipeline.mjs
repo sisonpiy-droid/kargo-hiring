@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { parseRubric } from "../lib/rubric.js";
 import { extractPii } from "../lib/pii.js";
 import { scoreCv, draftCommunications } from "../lib/pipeline.js";
+import { tierOf } from "../lib/tier.js";
 
 const criteria = parseRubric(readFileSync(new URL("../rubric.txt", import.meta.url), "utf8")).map((c, i) => ({ id: i + 1, ...c }));
 const dir = new URL("../test-cvs/", import.meta.url);
@@ -16,13 +17,11 @@ for (const file of files) {
 
   const t0 = Date.now();
   const scoring = await scoreCv(cvText, criteria);
-  const drafts = await draftCommunications(cvText, applied, scoring, criteria);
+  const d = await draftCommunications(cvText, applied, scoring, criteria);
+  const match = scoring[applied].total;
   console.log(`\n=== ${file} (applied ${applied}) ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-  for (const role of ["PM", "SPM"]) {
-    console.log(`${role} ${scoring[role].total}/100`);
-    for (const r of scoring[role].rows) console.log(`   ${r.position}. ${r.score}/10  ${r.reason}`);
-  }
-  console.log("BRIEF:", drafts.brief);
-  console.log("INVITE:\n" + drafts.invite);
-  console.log("REJECTION:\n" + drafts.rejection);
+  console.log(`match ${match}%  risk ${scoring.risk} [${scoring.riskFlags.join(", ")}]  tier ${tierOf(match, scoring.risk)}  (PM ${scoring.PM.total} / SPM ${scoring.SPM.total})`);
+  for (const r of scoring[applied].rows) console.log(`   ${r.position}. ${r.score}/5  ${r.reason.slice(0, 110)}`);
+  console.log("SUMMARY:", d.eval.summary);
+  console.log("PROBES:", d.eval.probes.length, "| STRENGTHS:", d.eval.strengths.length, "| RISKS:", d.eval.risks.length, "| SUBJECT:", d.inviteSubject);
 }

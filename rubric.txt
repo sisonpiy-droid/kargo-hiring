@@ -1,59 +1,38 @@
-KARGO HIRING RUBRIC
-Derived from 8 historical Kargo hire profiles
-
-PURPOSE
-This rubric is derived from patterns visible in the 8 historical hire profiles and their performance outcomes. It is intentionally not derived from the PM/SPM job descriptions.
-
-Historical calibration:
-- Exceeds Expectations: Rohan Desai, Sunita Krishnamurthy, Aditya Shetty, Meghna Tiwari, Lavanya Iyer
-- Meets Expectations: Vikram Nair, Rahul Bose
-- Below Expectations: Preetham Rao
-
-CORE PATTERNS FOUND IN THE PROFILES
-1. Strong hires repeatedly spotted a concrete problem or gap without waiting for a formal assignment, then acted on it.
-2. Strong hires showed unusually close proximity to the real user/operational problem and translated that understanding into a practical change.
-3. Strong hires left evidence of measurable improvement, adoption, risk reduction, or a durable process/system change.
-4. The strongest examples went beyond solving one instance: they created a repeatable process, tool, standard, or practice that other people adopted.
-5. Stronger examples also showed willingness to change course when evidence contradicted the initial approach.
+KARGO HIRING RUBRIC (v2)
+Criteria and weights follow the reference dashboard. Each criterion is scored 1-5.
+The previous rubric is kept in rubric-v1.txt.
 
 ==================================================
 PRODUCT MANAGER (PM)
 ==================================================
 
-Criterion 1: Self-started Problem Solving
+Criterion 1: Ship, learn & kill in short cycles
 
 What a strong candidate looks like:
-The CV contains a specific example where the candidate noticed a meaningful problem or inefficiency that was not simply handed to them as a task, took initiative to address it, and drove the change through to implementation. Look for concrete actions rather than claims such as "proactive" or "ownership."
+The CV shows features shipped in short cycles and then judged on real usage: specific launches, the adoption or usage data that followed, and at least one feature the candidate killed, rolled back or redirected because the data said so. Shipping lists without any post-launch evidence score 2 at most.
 
 Weight: 25%
 
-Criterion 2: Evidence From the Real User
+Criterion 2: Unforced adoption with operational impact
 
 What a strong candidate looks like:
-The candidate has worked close enough to actual users, customers, operators, or frontline teams to uncover how a process really works. Strong evidence includes observing or speaking with users, mapping a workflow, identifying a mismatch between the intended and actual process, or translating frontline needs into a practical change.
+The candidate built a tool, process or practice that other people adopted without being told to, such as a sheet, checklist or workflow that became a team or branch standard, and it changed how operations ran. Evidence must name who adopted it and what changed. Mandated rollouts do not count.
+
+Weight: 25%
+
+Criterion 3: Engineering trust & self-built rhythm
+
+What a strong candidate looks like:
+The candidate worked directly with engineers with no translation layer and set up the working rhythm themselves: sprint rituals, specs, API documentation, or discovery-to-sprint handoffs they created, ideally as the only PM or without a product manager above them.
 
 Weight: 20%
 
-Criterion 3: From Insight to Implemented Change
+Criterion 4: Ground-level operations immersion
 
 What a strong candidate looks like:
-The candidate shows a clear chain from identifying an issue to designing or changing something and getting it into actual use. The evidence should describe what they personally changed, built, redesigned, launched, or implemented rather than only participating in a project.
+The candidate has done hands-on logistics or operations work (warehouse, dispatch, carrier allocation, customs, 3PL, freight forwarding) or embedded with operations teams for a sustained period, and can name the concrete tasks and volumes. Observation from a distance, consulting, or interviews alone score 2 at most.
 
-Weight: 25%
-
-Criterion 4: Measurable Consequence
-
-What a strong candidate looks like:
-The candidate connects their intervention to an observable result such as higher adoption, lower support volume, faster processing, reduced errors, lower cost, fewer incidents, improved retention, or another concrete operational/business outcome. A metric is strong evidence, but a clearly described observable outcome can also qualify.
-
-Weight: 15%
-
-Criterion 5: Makes the Fix Repeatable
-
-What a strong candidate looks like:
-The candidate shows that a successful solution became a reusable process, tool, documentation standard, dashboard, framework, or team practice rather than remaining a one-off personal fix. Evidence that other people adopted or continued using the change is particularly strong.
-
-Weight: 15%
+Weight: 30%
 
 TOTAL: 100%
 
@@ -62,40 +41,33 @@ TOTAL: 100%
 SENIOR PRODUCT MANAGER (SPM)
 ==================================================
 
-Criterion 1: Self-started Problem Solving
+Criterion 1: Ground-level operations depth
 
 What a strong candidate looks like:
-The CV shows repeated examples of independently identifying important problems, deciding what to do without needing detailed direction, and carrying the response through to a meaningful outcome. The evidence should demonstrate judgment, not simply task execution.
+Years of hands-on operational work in logistics, freight, customs, ports or warehousing, ideally running a team or shift, with concrete responsibilities and volumes. The candidate's product decisions visibly draw on that operational knowledge.
 
-Weight: 20%
+Weight: 30%
 
-Criterion 2: Evidence From the Real User
-
-What a strong candidate looks like:
-The candidate repeatedly demonstrates direct understanding of customers, operators, or frontline workflows and uses that understanding to make decisions. Strong evidence includes discovering non-obvious workflow problems, reconciling conflicting stakeholder needs, or changing an approach because of what users revealed.
-
-Weight: 15%
-
-Criterion 3: From Insight to Implemented Change
+Criterion 2: Autonomous calls in ambiguity
 
 What a strong candidate looks like:
-The candidate has repeatedly taken ambiguous problems from observation through decision, implementation, and follow-through. Look for evidence that they personally drove substantial changes rather than serving mainly as a contributor to someone else's defined plan.
-
-Weight: 20%
-
-Criterion 4: Measurable Consequence and Adaptation
-
-What a strong candidate looks like:
-The candidate links decisions to measurable outcomes and shows that they use evidence to adjust course when the original approach is not working. Strong evidence includes stopping or changing an initiative based on usage/data, diagnosing the reason for an unsuccessful outcome, or reallocating effort toward a demonstrably better result.
-
-Weight: 20%
-
-Criterion 5: Makes the Fix Repeatable and Scalable
-
-What a strong candidate looks like:
-The candidate repeatedly turns individual solutions into systems that other people can use: operating processes, standards, tooling, documentation, team practices, or mechanisms that continue working beyond the original intervention. Stronger evidence shows adoption beyond the candidate's immediate work and/or that the candidate enabled other people to perform better.
+The candidate owned product decisions with no layer above them (sole PM, owner of an area) and made hard calls alone: killing features or projects based on data, absorbing sunk cost, or setting direction where nothing was defined. Evidence must show the decision and its outcome.
 
 Weight: 25%
+
+Criterion 3: Integration & platform judgment
+
+What a strong candidate looks like:
+The candidate led integrations or platform work (carrier, customs, ERP or TMS APIs, data pipelines) and shows judgment about what the data and systems can and cannot do, e.g. designing around known API or data limitations, with a concrete result.
+
+Weight: 30%
+
+Criterion 4: Cross-functional unblocking & standards
+
+What a strong candidate looks like:
+The candidate unblocked work across teams (several engineering squads, customers, operations) and left standards or practices that others adopted beyond their own team, such as a tracker, discovery practice or process that spread.
+
+Weight: 15%
 
 TOTAL: 100%
 
@@ -104,18 +76,12 @@ TOTAL: 100%
 SCORING INSTRUCTIONS
 ==================================================
 
-For every candidate:
-
-1. Score the candidate against ALL PM criteria.
-2. Score the candidate against ALL SPM criteria.
-3. Score each criterion from 0 to 10.
-4. Apply the criterion weight to calculate the weighted total.
-5. Produce one concise, evidence-based reason for every criterion.
-6. Do not use candidate name, email, phone number, or other personal details in AI scoring.
-7. Do not score based on years of experience, job title, college brand, or generic skill keywords.
-8. Do not introduce additional criteria outside this rubric.
-9. If the CV contains insufficient evidence for a criterion, score the evidence conservatively rather than inferring it.
-10. Scores must be based only on evidence present in the candidate's CV/application material.
-
-IMPORTANT:
-The rubric is designed to identify patterns resembling Kargo's historically successful hires, not to measure how closely a candidate matches the job description.
+1. Score every candidate on ALL PM criteria and ALL SPM criteria, each 1-5 (1 = no evidence, 3 = some real evidence, 5 = strong, specific, repeated evidence).
+2. For each criterion, quote or closely paraphrase the CV evidence behind the score.
+3. Match % = the weighted score for the role applied for, as a percentage of 5.
+4. Risk flags, from the list below only, each add 30 risk points (capped at 100):
+   - No operations exposure: no hands-on operations or logistics work at all.
+   - Structure dependency: has only worked inside established PM structures (a manager above, defined roadmaps) with no evidence of operating alone.
+   - Keyword-only claims: relies on titles, frameworks, certifications or buzzwords with no concrete outcomes.
+   - No shipped outcomes: no evidence of anything shipped reaching real users.
+5. Use only evidence present in the CV. Do not use name, email, phone, age, gender, college brand or years of experience.
