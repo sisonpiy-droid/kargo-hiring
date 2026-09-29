@@ -102,23 +102,33 @@ export default function Dashboard() {
   return <Board {...{ tab, setTab, data, loadError, all, count, medium, rejections, rejectionsUnsent, actions, api, refresh, sendAllRejections }} />;
 }
 
+// Stat tiles double as filters: clicking one opens the Audit log showing just those candidates.
+const FILTERS = {
+  all: { label: "Evaluated", test: () => true },
+  high: { label: "High", test: (c) => c.tier === "high" },
+  medium: { label: "Medium", test: (c) => c.tier === "medium" },
+  rejected: { label: "Auto-rejected", test: (c) => c.tier === "rejected" },
+  invited: { label: "Invites sent", test: (c) => c.status === "sent" && c.sent_email_type === "invite" },
+};
+
 function Board({ tab, setTab, data, loadError, all, count, medium, rejections, rejectionsUnsent, actions, api, refresh, sendAllRejections }) {
-  const mainRef = useReveal([tab]);
+  const [filter, setFilter] = useState("all");
+  const mainRef = useReveal([tab, filter]);
+  const openFiltered = (key) => { setFilter(key); setTab("audit"); };
+  const goTab = (t) => { setFilter("all"); setTab(t); };
 
   return (
     <>
-      <Header tab={tab} setTab={setTab} reviewCount={medium.length + rejectionsUnsent.length} />
+      <Header tab={tab} setTab={goTab} reviewCount={medium.length + rejectionsUnsent.length} />
       {data?.missing?.length > 0 && (
         <div className="banner">Not configured on the server: {data.missing.join(", ")}{data.missing.includes("RESEND_API_KEY") && " (needed to send email)"}</div>
       )}
       <main ref={mainRef}>
         {loadError && <p className="error">{loadError}</p>}
         <div className="stats">
-          <Stat n={all.length} label="Evaluated" />
-          <Stat n={count((c) => c.tier === "high")} label="High" />
-          <Stat n={count((c) => c.tier === "medium")} label="Medium" />
-          <Stat n={count((c) => c.tier === "rejected")} label="Auto-rejected" />
-          <Stat n={count((c) => c.status === "sent" && c.sent_email_type === "invite")} label="Invites sent" />
+          {Object.entries(FILTERS).map(([key, f]) => (
+            <Stat key={key} n={count(f.test)} label={f.label} active={tab === "audit" && filter === key} onClick={() => openFiltered(key)} />
+          ))}
         </div>
 
         {tab === "shortlist" && (
@@ -133,7 +143,7 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
             <RejectionList candidates={rejections} unsent={rejectionsUnsent.length} actions={actions} onSendAll={() => sendAllRejections(rejectionsUnsent.length)} />
           </>
         )}
-        {tab === "audit" && <AuditLog candidates={all} />}
+        {tab === "audit" && <AuditLog candidates={all} filter={filter} setFilter={setFilter} />}
       </main>
     </>
   );
@@ -164,9 +174,14 @@ function Header({ tab, setTab, reviewCount }) {
   );
 }
 
-function Stat({ n, label }) {
+function Stat({ n, label, active, onClick }) {
   const num = useCountUp(n);
-  return <div className="stat" data-anim><div className="n" ref={num}>{n}</div><div className="label">{label}</div></div>;
+  return (
+    <button type="button" className={`stat ${active ? "on" : ""}`} data-anim onClick={onClick} title={`Show ${label.toLowerCase()} candidates`}>
+      <div className="n" ref={num}>{n}</div>
+      <div className="label">{label} <span className="go">→</span></div>
+    </button>
+  );
 }
 
 // --- Evaluate CVs: role, files, optional single-CV override, parallel queue ---
@@ -505,7 +520,8 @@ function RejectionList({ candidates, unsent, actions, onSendAll }) {
 
 // --- Audit log ------------------------------------------------------------------
 
-function AuditLog({ candidates }) {
+function AuditLog({ candidates: all, filter, setFilter }) {
+  const candidates = all.filter(FILTERS[filter].test);
   const status = (c) =>
     c.status === "sent" ? (c.sent_email_type === "invite" ? "Invite sent" : "Rejection scheduled")
       : c.decision === "passed" ? "Passed" : c.decision === "reconsidered" ? "Reconsidered" : "Awaiting decision";
@@ -513,6 +529,14 @@ function AuditLog({ candidates }) {
     <section className="card" data-anim>
       <h2>Audit log</h2>
       <div className="muted small" style={{ marginBottom: 10 }}>Every evaluated candidate, including auto-rejected ones, with full scoring evidence and rationale.</div>
+      <div className="chips filters">
+        {Object.entries(FILTERS).map(([key, f]) => (
+          <button key={key} className={`fchip ${filter === key ? "on" : ""}`} onClick={() => setFilter(key)}>
+            {f.label} <span className="muted">{all.filter(f.test).length}</span>
+          </button>
+        ))}
+      </div>
+      {candidates.length === 0 && <div className="muted" style={{ padding: "10px 0" }}>No candidates in this group yet.</div>}
       <div className="tablewrap">
         <table>
           <thead><tr><th>ID</th><th>Candidate</th><th>Role</th><th>Match</th><th>Risk</th><th>Category</th><th>Status</th><th>Email</th></tr></thead>
