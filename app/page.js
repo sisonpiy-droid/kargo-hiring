@@ -2,6 +2,7 @@
 // The whole dashboard: Shortlist (evaluate CVs + shortlisted candidates), Review queue
 // (medium candidates + rejection emails) and Audit log.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useReveal, useEnter, useCountUp, usePulse } from "@/lib/motion";
 
 const ROLE_NAMES = { PM: "Product Manager", SPM: "Senior Product Manager" };
 const TIER_LABEL = { high: "High potential", medium: "Medium potential", rejected: "Auto-rejected" };
@@ -93,6 +94,11 @@ export default function Dashboard() {
   const rejections = all.filter((c) => c.list === "rejection");
   const rejectionsUnsent = rejections.filter((c) => c.status !== "sent");
   const actions = { decide, sendInvite, sendRejection, busy };
+  return <Board {...{ tab, setTab, data, loadError, all, count, medium, rejections, rejectionsUnsent, actions, api, refresh, sendAllRejections }} />;
+}
+
+function Board({ tab, setTab, data, loadError, all, count, medium, rejections, rejectionsUnsent, actions, api, refresh, sendAllRejections }) {
+  const mainRef = useReveal([tab]);
 
   return (
     <>
@@ -100,7 +106,7 @@ export default function Dashboard() {
       {data?.missing?.length > 0 && (
         <div className="banner">Not configured on the server: {data.missing.join(", ")}{data.missing.includes("RESEND_API_KEY") && " (needed to send email)"}</div>
       )}
-      <main>
+      <main ref={mainRef}>
         {loadError && <p className="error">{loadError}</p>}
         <div className="stats">
           <Stat n={all.length} label="Evaluated" />
@@ -129,8 +135,10 @@ export default function Dashboard() {
 }
 
 function Header({ tab, setTab, reviewCount }) {
+  const ref = useEnter();
+  const badge = usePulse(reviewCount);
   return (
-    <header className="top">
+    <header className="top" ref={ref}>
       <div className="brand">
         <div className="logo">K</div>
         <div>
@@ -142,7 +150,7 @@ function Header({ tab, setTab, reviewCount }) {
         <nav className="tabs">
           <button className={tab === "shortlist" ? "on" : ""} onClick={() => setTab("shortlist")}>Shortlist</button>
           <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>
-            Review queue {reviewCount > 0 && <span className="badge">{reviewCount}</span>}
+            Review queue {reviewCount > 0 && <span className="badge" ref={badge}>{reviewCount}</span>}
           </button>
           <button className={tab === "audit" ? "on" : ""} onClick={() => setTab("audit")}>Audit log</button>
         </nav>
@@ -152,7 +160,8 @@ function Header({ tab, setTab, reviewCount }) {
 }
 
 function Stat({ n, label }) {
-  return <div className="stat"><div className="n">{n}</div><div className="label">{label}</div></div>;
+  const num = useCountUp(n);
+  return <div className="stat" data-anim><div className="n" ref={num}>{n}</div><div className="label">{label}</div></div>;
 }
 
 // --- Evaluate CVs: role, files, optional single-CV override, parallel queue ---
@@ -225,7 +234,7 @@ function Evaluate({ api, onDone, existing }) {
   const processed = n("done") + n("failed") + n("skipped");
 
   return (
-    <section className="card">
+    <section className="card" data-anim>
       <h2>Evaluate CVs</h2>
       <div className="evalgrid">
         <label className="field">Role
@@ -295,7 +304,7 @@ function Shortlist({ candidates, actions, testRecipient }) {
   const shown = candidates.filter((c) => c.match >= min);
   return (
     <section>
-      <h2 className="section">Shortlist <span className="muted small">High potential, plus medium candidates you reconsider</span></h2>
+      <h2 className="section" data-anim>Shortlist <span className="muted small">High potential, plus medium candidates you reconsider</span></h2>
       <MinMatch value={min} onChange={setMin} shown={shown.length} />
       {shown.length === 0 && <div className="card muted">No shortlisted candidates yet. Evaluate some CVs above.</div>}
       {shown.map((c) => <CandidateCard key={c.id} c={c} actions={actions} testRecipient={testRecipient} />)}
@@ -310,8 +319,9 @@ function Pill({ tier }) {
 function CandidateCard({ c, actions, testRecipient, fromQueue }) {
   const e = c.eval;
   const sent = c.status === "sent";
+  const ref = useEnter();
   return (
-    <article className={`card cand ${c.tier}`}>
+    <article className={`card cand ${c.tier}`} ref={ref}>
       <div className="candhead">
         <div>
           <div className="cname">{c.name}</div>
@@ -405,7 +415,7 @@ function MediumQueue({ candidates, actions, testRecipient }) {
   const [detail, setDetail] = useState(null);
   const shown = candidates.filter((c) => c.match >= min);
   return (
-    <section className="card">
+    <section className="card" data-anim>
       <div className="row between">
         <div>
           <h2>Medium potential <span className="muted">({candidates.length})</span></h2>
@@ -418,7 +428,7 @@ function MediumQueue({ candidates, actions, testRecipient }) {
           <MinMatch value={min} onChange={setMin} shown={shown.length} />
           {shown.length === 0 && <div className="muted">Nobody here right now.</div>}
           {shown.map((c) => (
-            <div key={c.id} className="qrow">
+            <div key={c.id} className="qrow" data-anim>
               <div className="grow">
                 <div><b>{c.name}</b> <span className="muted small">{c.ref} · {ROLE_NAMES[c.applied_role]}</span> <Pill tier={c.tier} /> <span className="small"><b>{c.match}%</b> match · <b>{c.risk}</b> risk</span></div>
                 <div className="clip">{c.eval.summary}</div>
@@ -440,7 +450,7 @@ function MediumQueue({ candidates, actions, testRecipient }) {
 function RejectionList({ candidates, unsent, actions, onSendAll }) {
   const [open, setOpen] = useState(true);
   return (
-    <section className="card">
+    <section className="card" data-anim>
       <div className="row between">
         <div>
           <h2>Rejection emails <span className="muted">({candidates.length} · {unsent} not sent)</span></h2>
@@ -452,7 +462,7 @@ function RejectionList({ candidates, unsent, actions, onSendAll }) {
         </div>
       </div>
       {open && candidates.map((c) => (
-        <div key={c.id} className="qrow">
+        <div key={c.id} className="qrow" data-anim>
           <div className="grow">
             <div><b>{c.name}</b> <span className="muted small">{c.ref} · {ROLE_NAMES[c.applied_role]}</span> <Pill tier={c.decision === "passed" ? "rejected" : c.tier} /> <span className="small"><b>{c.match}%</b> match · <b>{c.risk}</b> risk</span>{c.decision === "passed" && <span className="muted small"> · passed by you</span>}</div>
             <div className="clip">{c.eval.summary}</div>
@@ -480,7 +490,7 @@ function AuditLog({ candidates }) {
     c.status === "sent" ? (c.sent_email_type === "invite" ? "Invite sent" : "Rejection scheduled")
       : c.decision === "passed" ? "Passed" : c.decision === "reconsidered" ? "Reconsidered" : "Awaiting decision";
   return (
-    <section className="card">
+    <section className="card" data-anim>
       <h2>Audit log</h2>
       <div className="muted small" style={{ marginBottom: 10 }}>Every evaluated candidate, including auto-rejected ones, with full scoring evidence and rationale.</div>
       <div className="tablewrap">
@@ -488,7 +498,7 @@ function AuditLog({ candidates }) {
           <thead><tr><th>ID</th><th>Candidate</th><th>Role</th><th>Match</th><th>Risk</th><th>Category</th><th>Status</th><th>Email</th></tr></thead>
           <tbody>
             {candidates.map((c) => (
-              <tr key={c.id}>
+              <tr key={c.id} data-anim>
                 <td className="muted">{c.ref}</td>
                 <td>{c.name}</td>
                 <td>{c.applied_role}</td>
