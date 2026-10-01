@@ -159,7 +159,7 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
           </>
         )}
         {tab === "rubric" && <JobsView data={data} api={api} refresh={refresh} />}
-        {tab === "audit" && <AuditLog candidates={all} filter={filter} setFilter={setFilter} api={api} refresh={refresh} />}
+        {tab === "audit" && <AuditLog candidates={all} filter={filter} setFilter={setFilter} api={api} refresh={refresh} thresholds={data?.thresholds} />}
       </main>
     </>
   );
@@ -530,7 +530,8 @@ function RejectionList({ candidates, unsent, actions, onSendAll }) {
 
 // --- Audit log ------------------------------------------------------------------
 
-function AuditLog({ candidates: all, filter, setFilter, api, refresh }) {
+function AuditLog({ candidates: all, filter, setFilter, api, refresh, thresholds }) {
+  const [why, setWhy] = useState(null); // candidate whose tier explanation is open
   const [wiping, setWiping] = useState(false);
   async function deleteAllCvs() {
     const typed = prompt(`This deletes all ${all.length} CVs: candidates, their personal details, scores, briefs and email drafts.\nJobs, JDs and rubrics are kept.\n\nType DELETE to confirm.`);
@@ -564,7 +565,7 @@ function AuditLog({ candidates: all, filter, setFilter, api, refresh }) {
           <thead><tr><th>ID</th><th>Candidate</th><th>Role</th><th>Match</th><th>Risk</th><th>Category</th><th>Status</th><th>Email</th></tr></thead>
           <tbody>
             {candidates.map((c) => (
-              <tr key={c.id} data-anim>
+              <tr key={c.id} data-anim className="clickrow" onClick={() => setWhy(c)} title="Why this category?">
                 <td className="muted">{c.ref}</td>
                 <td>{c.name}</td>
                 <td>{ROLE_NAMES[c.applied_role] || c.applied_role}</td>
@@ -578,6 +579,7 @@ function AuditLog({ candidates: all, filter, setFilter, api, refresh }) {
           </tbody>
         </table>
       </div>
+      {why && <WhyModal c={why} t={thresholds || {}} onClose={() => setWhy(null)} />}
       <div className="danger">
         <div>
           <b>Start again</b>
@@ -763,5 +765,79 @@ function NewJob({ api, refresh }) {
         </>
       )}
     </section>
+  );
+}
+
+// --- "Why is this candidate High / Medium / Auto-rejected?" -------------------------
+// Built entirely from data already stored for the candidate: no AI call.
+
+const pts = (n) => { const v = Math.round(n * 10) / 10; return `${v} point${v === 1 ? "" : "s"}`; };
+
+function whyReasons(c, t) {
+  const out = [];
+  const flags = c.eval?.risk_flags || [];
+  if (c.tier === "high") {
+    out.push(`Match is ${c.match}%, at or above the ${t.high}% High-potential line.`);
+    out.push(`Risk is ${c.risk}, within the limit of ${t.maxRisk}.`);
+  } else if (c.tier === "medium") {
+    out.push(`Match is ${c.match}%: above the ${t.medium}% Medium line but below the ${t.high}% needed for High (${pts(t.high - c.match)} short).`);
+    out.push(`Risk is ${c.risk}, within the limit of ${t.maxRisk}.`);
+  } else {
+    if (c.risk > t.maxRisk) out.push(`Risk is ${c.risk}, above the limit of ${t.maxRisk}, so they are auto-rejected whatever the match.`);
+    if (c.match < t.medium) out.push(`Match is ${c.match}%, below the ${t.medium}% needed for Medium (${pts(t.medium - c.match)} short).`);
+  }
+  if (flags.length) out.push(`Risk flags (30 points each): ${flags.join(", ")}.`);
+  if (c.decision === "passed") out.push("You passed on this candidate, so they are on the rejection list.");
+  if (c.decision === "reconsidered") out.push("You reconsidered this candidate, so they are on the Shortlist.");
+  return out;
+}
+
+function WhyModal({ c, t, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const rubric = [...(c.rubric || [])].filter((k) => k.score != null);
+  const sorted = [...rubric].sort((a, b) => b.score - a.score);
+  const strongest = sorted.slice(0, 2).filter((k) => k.score >= 3);
+  const weakest = [...sorted].reverse().slice(0, 2).filter((k) => k.score <= 3);
+  return (
+    <div className="modalback" onClick={onClose}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <div className="row between">
+          <div>
+            <div className="cname">{c.name}</div>
+            <div className="muted small">{c.ref} · {ROLE_NAMES[c.applied_role] || c.applied_role}</div>
+          </div>
+          <div className="row nowrap">
+            <Pill tier={c.tier} />
+            <button onClick={onClose} aria-label="Close">✕</button>
+          </div>
+        </div>
+
+        <h3>Why {TIER_LABEL[c.tier]}</h3>
+        <ul>{whyReasons(c, t).map((r, i) => <li key={i}>{r}</li>)}</ul>
+        {c.eval?.summary && <p className="muted">{c.eval.summary}</p>}
+
+        {strongest.length > 0 && (<>
+          <h3>Strongest evidence</h3>
+          {strongest.map((k) => <div key={k.name} className="crit"><b>{k.score}/5</b> {k.name} ({k.weight}%)<div className="muted small">{k.evidence}</div></div>)}
+        </>)}
+        {weakest.length > 0 && (<>
+          <h3>What held them back</h3>
+          {weakest.map((k) => <div key={k.name} className="crit"><b>{k.score}/5</b> {k.name} ({k.weight}%)<div className="muted small">{k.evidence}</div></div>)}
+        </>)}
+        {c.eval?.risks?.length > 0 && (<>
+          <h3>Risks to verify</h3>
+          <ul>{c.eval.risks.map((r, i) => <li key={i}>{r}</li>)}</ul>
+        </>)}
+
+        <h3>All scores</h3>
+        {rubric.map((k) => (
+          <div key={k.name} className="row between small"><span>{k.name} ({k.weight}%)</span><b>{k.score}/5</b></div>
+        ))}
+      </div>
+    </div>
   );
 }

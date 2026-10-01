@@ -199,3 +199,10 @@ button.stat:hover .go, button.stat.on .go { opacity: 1; }
   margin-top: 18px; padding: 12px 14px; border: 1px solid rgba(248, 113, 113, .35); border-radius: 10px; background: rgba(248, 113, 113, .05); }
 button.dangerbtn { border-color: rgba(248, 113, 113, .6); color: var(--bad); background: transparent; }
 button.dangerbtn:hover:not(:disabled) { background: rgba(248, 113, 113, .12); }
+
+/* "why" pop-up */
+tr.clickrow { cursor: pointer; }
+.modalback { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); display: grid; place-items: center; z-index: 50; padding: 16px; animation: fade .15s ease-out; }
+.modal { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; width: min(640px, 100%); max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); animation: rise .2s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
