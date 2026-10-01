@@ -19,6 +19,7 @@ export default function Dashboard() {
   pc.current = passcode;
   const [authed, setAuthed] = useState(false);
   const [checked, setChecked] = useState(false); // first load attempted (avoids flashing the passcode form)
+  const [needsPasscode, setNeedsPasscode] = useState(false); // only when the server answers 401
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState("shortlist");
@@ -28,7 +29,7 @@ export default function Dashboard() {
     (path, opts = {}) =>
       fetch(path, { ...opts, headers: { ...(opts.headers || {}), "x-passcode": pc.current } }).then(async (r) => {
         const body = await r.json().catch(() => ({}));
-        if (r.status === 401) { setAuthed(false); throw new Error("Wrong passcode"); }
+        if (r.status === 401) { setAuthed(false); setNeedsPasscode(true); throw new Error("Wrong passcode"); }
         if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
         return body;
       }),
@@ -36,13 +37,23 @@ export default function Dashboard() {
   );
   const post = (path, body) => api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
-  const refresh = useCallback(async () => {
+  // Loads the dashboard. A temporary server error on first load is retried quietly
+  // (with no passcode set the site should simply open); only a 401 asks for the passcode.
+  const refresh = useCallback(async (retries = 0) => {
     try {
-      const d = await api("/api/candidates");
+      let d;
+      for (let attempt = 0; ; attempt++) {
+        try { d = await api("/api/candidates"); break; }
+        catch (e) {
+          if (e.message === "Wrong passcode" || attempt >= retries) throw e;
+          await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        }
+      }
       for (const j of d.jobs || []) ROLE_NAMES[j.key] = j.title;
       setData(d);
       setLoadError("");
       setAuthed(true);
+      setNeedsPasscode(false);
       try { localStorage.setItem("kargo-passcode", pc.current); } catch {}
     } catch (e) {
       setLoadError(e.message);
@@ -54,7 +65,7 @@ export default function Dashboard() {
   useEffect(() => {
     const p = getStored();
     if (p) { pc.current = p; setPasscode(p); }
-    refresh().finally(() => setChecked(true));
+    refresh(3).finally(() => setChecked(true));
   }, [refresh]);
 
   async function run(id, fn) {
@@ -80,7 +91,21 @@ export default function Dashboard() {
     });
   };
 
-  if (!authed && !checked) return <Header />;
+  if (!authed && !needsPasscode) {
+    return (
+      <>
+        <Header />
+        <main>
+          <div className="card row">
+            {!checked ? <span className="muted">Loading…</span> : (<>
+              <span className="error">Couldn't load the dashboard{loadError ? `: ${loadError}` : ""}.</span>
+              <button className="primary" onClick={() => refresh(2)}>Retry</button>
+            </>)}
+          </div>
+        </main>
+      </>
+    );
+  }
   if (!authed) {
     return (
       <>
