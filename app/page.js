@@ -878,10 +878,17 @@ function HowItWorks({ data, goTab, startNewJob }) {
       <section className="card howhero" data-anim>
         <h2>How this works</h2>
         <p className="muted">Drop in CVs for a job. Each one is anonymised, scored on evidence against that job's rubric, sorted into a tier with the reasons shown, and given ready-to-send emails. You make every decision.</p>
-        <video className="demo" src="/kargo-hiring-demo.mp4" poster="/kargo-hiring-demo.jpg" controls playsInline preload="metadata">
-          Your browser can't play this video. <a href="/kargo-hiring-demo.mp4">Download it</a>.
+        <h3>Full walkthrough · 3 min</h3>
+        <video className="demo" src="/kargo-hiring-walkthrough.mp4" poster="/kargo-hiring-walkthrough.jpg" controls playsInline preload="metadata">
+          Your browser can't play this video. <a href="/kargo-hiring-walkthrough.mp4">Download it</a>.
         </video>
-        <div className="muted small">22-second walkthrough: upload, evidence-based scoring, the reasons behind a tier, and sending an invite.</div>
+        <div className="muted small">Every feature in order: upload, privacy, evidence-based scoring, the brief, tiers and their reasons, decisions, invites, and creating a new job from a JD.</div>
+        <details className="reasoning" style={{ marginTop: 12 }}>
+          <summary>Quick look · 22 seconds</summary>
+          <video className="demo" src="/kargo-hiring-demo.mp4" poster="/kargo-hiring-demo.jpg" controls playsInline preload="none">
+            Your browser can't play this video. <a href="/kargo-hiring-demo.mp4">Download it</a>.
+          </video>
+        </details>
       </section>
       <div className="steps">
         {steps.map((s) => (
