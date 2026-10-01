@@ -154,8 +154,8 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
         )}
         {tab === "review" && (
           <>
-            <MediumQueue candidates={medium} actions={actions} testRecipient={data?.testRecipient} />
-            <RejectionList candidates={rejections} unsent={rejectionsUnsent.length} actions={actions} onSendAll={() => sendAllRejections(rejectionsUnsent.length)} />
+            <MediumQueue candidates={medium} actions={actions} testRecipient={data?.testRecipient} thresholds={data?.thresholds} />
+            <RejectionList thresholds={data?.thresholds} candidates={rejections} unsent={rejectionsUnsent.length} actions={actions} onSendAll={() => sendAllRejections(rejectionsUnsent.length)} />
           </>
         )}
         {tab === "rubric" && <JobsView data={data} api={api} refresh={refresh} />}
@@ -454,8 +454,9 @@ function InviteDraft({ c, actions, testRecipient }) {
 
 // --- Review queue -----------------------------------------------------------------
 
-function MediumQueue({ candidates, actions, testRecipient }) {
+function MediumQueue({ candidates, actions, testRecipient, thresholds }) {
   const [open, setOpen] = useState(true);
+  const [why, setWhy] = useState(null);
   const [min, setMin] = useState(0);
   const [detail, setDetail] = useState(null);
   const shown = candidates.filter((c) => c.match >= min);
@@ -474,7 +475,7 @@ function MediumQueue({ candidates, actions, testRecipient }) {
           {shown.length === 0 && <div className="muted">Nobody here right now.</div>}
           {shown.map((c) => (
             <div key={c.id} className="qrow" data-anim>
-              <div className="grow">
+              <div className="grow clickable" onClick={() => setWhy(c)} title="Why this category?">
                 <div><b>{c.name}</b> <span className="muted small">{c.ref} · {ROLE_NAMES[c.applied_role]}</span> <Pill tier={c.tier} /> <span className="small"><b>{c.match}%</b> match · <b>{c.risk}</b> risk</span></div>
                 <div className="clip">{c.eval.summary}</div>
               </div>
@@ -488,12 +489,14 @@ function MediumQueue({ candidates, actions, testRecipient }) {
           ))}
         </>
       )}
+      {why && <WhyModal c={why} t={thresholds || {}} onClose={() => setWhy(null)} />}
     </section>
   );
 }
 
-function RejectionList({ candidates, unsent, actions, onSendAll }) {
+function RejectionList({ candidates, unsent, actions, onSendAll, thresholds }) {
   const [open, setOpen] = useState(true);
+  const [why, setWhy] = useState(null);
   return (
     <section className="card" data-anim>
       <div className="row between">
@@ -508,7 +511,7 @@ function RejectionList({ candidates, unsent, actions, onSendAll }) {
       </div>
       {open && candidates.map((c) => (
         <div key={c.id} className="qrow" data-anim>
-          <div className="grow">
+          <div className="grow clickable" onClick={() => setWhy(c)} title="Why this category?">
             <div><b>{c.name}</b> <span className="muted small">{c.ref} · {ROLE_NAMES[c.applied_role]}</span> <Pill tier={c.decision === "passed" ? "rejected" : c.tier} /> <span className="small"><b>{c.match}%</b> match · <b>{c.risk}</b> risk</span>{c.decision === "passed" && <span className="muted small"> · passed by you</span>}</div>
             <div className="clip">{c.eval.summary}</div>
             {c.eval.risk_flags?.length > 0 && <div className="chips">{c.eval.risk_flags.map((f) => <span key={f} className="chip">{f}</span>)}</div>}
@@ -524,6 +527,7 @@ function RejectionList({ candidates, unsent, actions, onSendAll }) {
           </div>
         </div>
       ))}
+      {why && <WhyModal c={why} t={thresholds || {}} onClose={() => setWhy(null)} />}
     </section>
   );
 }
