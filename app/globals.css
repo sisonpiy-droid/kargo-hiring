@@ -219,3 +219,7 @@ tr.clickrow { cursor: pointer; }
 .roletabs button.addjob { flex: 0 0 auto; min-width: 0; border-style: dashed; color: var(--accent); font-weight: 600; }
 
 .demo { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 14px 0 6px; border-radius: 10px; border: 1px solid var(--line); background: #000; }
+
+.brand.home { cursor: pointer; border-radius: 10px; }
+.brand.home:hover .title { color: var(--accent); }
+.brand.home:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }

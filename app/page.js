@@ -174,7 +174,14 @@ function Header({ tab, setTab, reviewCount }) {
   const badge = usePulse(reviewCount);
   return (
     <header className="top" ref={ref}>
-      <div className="brand">
+      <div
+        className={`brand ${setTab ? "home" : ""}`}
+        role={setTab ? "link" : undefined}
+        tabIndex={setTab ? 0 : undefined}
+        title={setTab ? "Home" : undefined}
+        onClick={() => { if (setTab) { setTab("shortlist"); window.scrollTo({ top: 0, behavior: "smooth" }); } }}
+        onKeyDown={(e) => { if (setTab && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setTab("shortlist"); window.scrollTo({ top: 0, behavior: "smooth" }); } }}
+      >
         <div className="logo">K</div>
         <div>
           <div className="title">Kargo Hiring</div>
