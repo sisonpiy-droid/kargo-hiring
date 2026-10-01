@@ -217,3 +217,5 @@ tr.clickrow { cursor: pointer; }
 .step { display: flex; gap: 14px; margin-bottom: 0; }
 .stepn { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--grad); color: #fff; font-weight: 800; display: grid; place-items: center; }
 .roletabs button.addjob { flex: 0 0 auto; min-width: 0; border-style: dashed; color: var(--accent); font-weight: 600; }
+
+.demo { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 14px 0 6px; border-radius: 10px; border: 1px solid var(--line); background: #000; }

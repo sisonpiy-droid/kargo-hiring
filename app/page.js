@@ -871,6 +871,10 @@ function HowItWorks({ data, goTab, startNewJob }) {
       <section className="card howhero" data-anim>
         <h2>How this works</h2>
         <p className="muted">Drop in CVs for a job. Each one is anonymised, scored on evidence against that job's rubric, sorted into a tier with the reasons shown, and given ready-to-send emails. You make every decision.</p>
+        <video className="demo" src="/kargo-hiring-demo.mp4" poster="/kargo-hiring-demo.jpg" controls playsInline preload="metadata">
+          Your browser can't play this video. <a href="/kargo-hiring-demo.mp4">Download it</a>.
+        </video>
+        <div className="muted small">22-second walkthrough: upload, evidence-based scoring, the reasons behind a tier, and sending an invite.</div>
       </section>
       <div className="steps">
         {steps.map((s) => (
