@@ -124,6 +124,8 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
   const mainRef = useReveal([tab, filter]);
   const openFiltered = (key) => { setFilter(key); setTab("audit"); };
   const goTab = (t) => { setFilter("all"); setTab(t); };
+  const [newJobOpen, setNewJobOpen] = useState(false);
+  const startNewJob = () => { setNewJobOpen(true); goTab("rubric"); };
 
   return (
     <>
@@ -147,6 +149,7 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
                   {ROLE_NAMES[r]} <span className="muted">{all.filter((c) => c.applied_role === r).length} CVs</span>
                 </button>
               ))}
+              <button className="addjob" onClick={startNewJob} title="Paste or upload a JD; the AI drafts a rubric for a new job">+ New job from a JD</button>
             </div>
             <Evaluate api={api} onDone={refresh} existing={all} role={role} />
             <Shortlist key={role} role={role} candidates={all.filter((c) => c.list === "shortlist" && c.applied_role === role)} actions={actions} testRecipient={data?.testRecipient} />
@@ -158,7 +161,8 @@ function Board({ tab, setTab, data, loadError, all, count, medium, rejections, r
             <RejectionList thresholds={data?.thresholds} candidates={rejections} unsent={rejectionsUnsent.length} actions={actions} onSendAll={() => sendAllRejections(rejectionsUnsent.length)} />
           </>
         )}
-        {tab === "rubric" && <JobsView data={data} api={api} refresh={refresh} />}
+        {tab === "howto" && <HowItWorks data={data} goTab={goTab} startNewJob={startNewJob} />}
+        {tab === "rubric" && <JobsView data={data} api={api} refresh={refresh} newJobOpen={newJobOpen} setNewJobOpen={setNewJobOpen} />}
         {tab === "audit" && <AuditLog candidates={all} filter={filter} setFilter={setFilter} api={api} refresh={refresh} thresholds={data?.thresholds} />}
       </main>
     </>
@@ -179,6 +183,7 @@ function Header({ tab, setTab, reviewCount }) {
       </div>
       {setTab && (
         <nav className="tabs">
+          <button className={tab === "howto" ? "on" : ""} onClick={() => setTab("howto")}>How this works</button>
           <button className={tab === "shortlist" ? "on" : ""} onClick={() => setTab("shortlist")}>Shortlist</button>
           <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>
             Review queue {reviewCount > 0 && <span className="badge" ref={badge}>{reviewCount}</span>}
@@ -597,7 +602,7 @@ function AuditLog({ candidates: all, filter, setFilter, api, refresh, thresholds
 
 // --- Jobs & rubrics ---------------------------------------------------------------
 
-function JobsView({ data, api, refresh }) {
+function JobsView({ data, api, refresh, newJobOpen, setNewJobOpen }) {
   const criteria = data?.rubric || [];
   const jobs = data?.jobs || [];
   const t = data?.thresholds || {};
@@ -613,7 +618,7 @@ function JobsView({ data, api, refresh }) {
         </div>
       </section>
 
-      <NewJob api={api} refresh={refresh} />
+      <NewJob api={api} refresh={refresh} open={newJobOpen} setOpen={setNewJobOpen} />
 
       <div className="cols">
         {jobs.map((j) => (
@@ -696,8 +701,9 @@ function JobCard({ job, criteria, candidates, api, refresh }) {
   );
 }
 
-function NewJob({ api, refresh }) {
-  const [open, setOpen] = useState(false);
+function NewJob({ api, refresh, open, setOpen }) {
+  const formRef = useRef(null);
+  useEffect(() => { if (open) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [open]);
   const [title, setTitle] = useState("");
   const [jd, setJd] = useState("");
   const [file, setFile] = useState(null);
@@ -735,7 +741,7 @@ function NewJob({ api, refresh }) {
     );
   }
   return (
-    <section className="card newjob" data-anim>
+    <section className="card newjob" data-anim ref={formRef}>
       <div className="row between"><h2 style={{ margin: 0 }}>New job</h2><button onClick={() => { setOpen(false); setDraft(null); }}>Cancel</button></div>
       <div className="muted small" style={{ margin: "4px 0 12px" }}>Paste or upload a job description. The AI drafts a rubric you can edit before creating the job. PM and SPM are not changed.</div>
       {!draft ? (
@@ -843,5 +849,50 @@ function WhyModal({ c, t, onClose }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// --- How this works ------------------------------------------------------------------
+// Static explainer; reads the live thresholds and job list so the numbers stay true.
+
+function HowItWorks({ data, goTab, startNewJob }) {
+  const t = data?.thresholds || { high: 80, medium: 70, maxRisk: 30 };
+  const jobs = data?.jobs || [];
+  const steps = [
+    { n: 1, title: "Pick a job and drop in CVs", body: "On the Shortlist page, choose the job tab (Product Manager, Senior Product Manager, or any job you add) and drop in as many PDF, Word or .txt CVs as you like. Three are evaluated at a time, about 10 seconds each." },
+    { n: 2, title: "Personal details are removed first", body: "Before anything reaches the AI, plain code strips the name, email, phone and LinkedIn/GitHub links and stores them separately. The AI only ever sees the anonymised CV text and the rubric." },
+    { n: 3, title: "Scored against every job's rubric", body: "Gemini scores each criterion 1 to 5 and quotes the CV line behind every score. Weighted together, that gives a match % for each job. Risk flags (for example \"No shipped outcomes\") add 30 risk points each." },
+    { n: 4, title: "Sorted into High, Medium or Auto-rejected", body: `High potential: match ≥ ${t.high}% and risk ≤ ${t.maxRisk}. Medium: match ≥ ${t.medium}% and risk ≤ ${t.maxRisk}. Everyone else is auto-rejected. Click any candidate in the Review queue or Audit log to see exactly why.` },
+    { n: 5, title: "Brief and emails are drafted", body: "Every candidate gets a summary, an interview brief, strengths, risks, three interview questions, and both an invite and a warm rejection, written from their own CV." },
+    { n: 6, title: "You decide; nothing sends by itself", body: "Reconsider or Pass on anyone, edit the invite, and click Send. Rejections are scheduled to arrive 48 hours later, one at a time or all at once. Every candidate hears back." },
+  ];
+  return (
+    <>
+      <section className="card howhero" data-anim>
+        <h2>How this works</h2>
+        <p className="muted">Drop in CVs for a job. Each one is anonymised, scored on evidence against that job's rubric, sorted into a tier with the reasons shown, and given ready-to-send emails. You make every decision.</p>
+      </section>
+      <div className="steps">
+        {steps.map((s) => (
+          <section key={s.n} className="card step" data-anim>
+            <div className="stepn">{s.n}</div>
+            <div><b>{s.title}</b><div className="muted small" style={{ marginTop: 4 }}>{s.body}</div></div>
+          </section>
+        ))}
+      </div>
+      <section className="card" data-anim>
+        <h2>Hiring for a different role?</h2>
+        <p className="muted small">Paste or upload its job description. The AI drafts a 4 to 6 criterion rubric from it, you edit the criteria and weights, and the job gets its own tab with the same process: upload, anonymise, score, tier, brief, emails. Current jobs: {jobs.map((j) => j.title).join(", ") || "Product Manager, Senior Product Manager"}.</p>
+        <div className="row end">
+          <button onClick={() => goTab("rubric")}>See the rubrics</button>
+          <button className="primary" onClick={startNewJob}>+ New job from a JD</button>
+        </div>
+      </section>
+      <section className="card" data-anim>
+        <h2>Starting again</h2>
+        <p className="muted small">Audit log → "Start again" deletes every CV and everything generated from it (type DELETE to confirm). Jobs, JDs and rubrics are kept.</p>
+        <div className="row end"><button className="primary" onClick={() => goTab("shortlist")}>Go to Shortlist</button></div>
+      </section>
+    </>
   );
 }
